@@ -1,6 +1,7 @@
 
 ### Education
-- BSc IT (Northwest University)
+- B.Sc. Information Technology, Cum Laude (North-West University, Class of 2026)
+- AI-900 (Microsoft)
 - ITILv4 (Pink Elephant)
 - AZ900 (Microsoft)
 - CCNA /A+ (Exponant)
@@ -10,6 +11,7 @@
 ---
 
 ### International Qualifications
+- Microsoft Certified: Azure AI Fundamentals (AI-900)
 - ITIL v4 Foundations
 - C# (C Sharp) Certification Course
 - Microsoft Certified: Azure Fundamentals
