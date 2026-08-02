@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap");
+﻿@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap");
 
 * {
   margin: 0;
@@ -33,8 +33,19 @@ body {
   opacity: 1;
 }
 
-/* Desktop View */
-@media (min-width: 769px) {
+/* ------------------------------------------------------------------
+   Layout modes
+   The two-page book is inherently landscape: it needs width to split
+   into two readable pages AND height for its fixed-size pages. A tall,
+   narrow viewport (a tablet held in portrait) gets the stacked layout
+   instead, which is why the breakpoint tests aspect ratio as well as
+   width. Below 1024px wide, or in portrait, each page becomes too narrow
+   for its own content, so we stack instead.
+   Keep this condition in sync with BOOK_LAYOUT_QUERY in script.js.
+   ------------------------------------------------------------------ */
+
+/* Desktop / landscape "book" View */
+@media (min-width: 1024px) and (min-aspect-ratio: 1/1) {
   body {
     overflow: hidden;
   }
@@ -42,8 +53,10 @@ body {
   .wrapper {
     position: relative;
     width: min(66rem, 90vw);
-    height: min(45rem, 85vh);
-    padding: 2rem;
+    /* Give the book as much of the viewport height as we can. Short laptop
+       screens used to leave the pages too small for their own content. */
+    height: min(45rem, 94vh);
+    padding: 1.25rem;
     perspective: 250rem;
     animation: show-animate 2s forwards;
     opacity: 0;
@@ -128,7 +141,20 @@ body {
     width: 100%;
     height: 100%;
     background: var(--pages-color);
-    padding: 1.5rem 2rem;
+    /* The bottom padding reserves the strip occupied by the page number and
+       the turn arrows so page content can never sit underneath them. */
+    padding: 1.5rem 1.75rem 4.25rem;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Without this the reverse of a leaf stays rendered and hit-testable while
+     facing away, so its mirrored arrow sat on top of the front page's arrow
+     and swallowed the click. */
+  .book-page .page-front,
+  .book-page .page-back {
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
   }
 
   .book-page .page-front {
@@ -138,10 +164,20 @@ body {
   .book-page .page-back {
     transform: rotateY(180deg) translateZ(1px);
   }
+
+  /* The profile page has no turn arrows, so it can use the full height. */
+  .book-page.page-left {
+    display: block;
+    overflow-y: auto;
+  }
+
+  .book-page.page-left .profile-page {
+    min-height: 100%;
+  }
 }
 
 /* Mobile & Tablet View */
-@media (max-width: 768px) {
+@media (max-width: 1023px), (max-aspect-ratio: 999/1000) {
   body {
     overflow-y: auto;
     overflow-x: hidden;
@@ -206,18 +242,316 @@ body {
   }
 }
 
+/* Jacques van Heerden (35317906) - Page Content Region */
+.page-content {
+  width: 100%;
+}
+
+@media (min-width: 1024px) and (min-aspect-ratio: 1/1) {
+  /* Fills the page above the navigation strip. If a page ever holds more than
+     it can show, it scrolls instead of spilling outside the book. */
+  .page-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: var(--main-color) transparent;
+  }
+
+  .page-content::-webkit-scrollbar {
+    width: .35rem;
+  }
+
+  .page-content::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .page-content::-webkit-scrollbar-thumb {
+    background: var(--main-color);
+    border-radius: .35rem;
+  }
+
+  /* The page now reserves space for the turn arrows in its own padding, so the
+     old bottom-margin spacers are no longer needed. */
+  .page-content .services-box,
+  .page-content .skills-box-compact,
+  .page-content .portfolio-box .btn-box,
+  .page-content .project-box .tech-chips {
+    margin-bottom: 0;
+  }
+
+  .page-content .contact-box {
+    margin: .8rem auto 0;
+  }
+
+  /* Book pages are height-constrained, so type scales with the page height as
+     well as its width. Without this, short laptop screens overflow. */
+  .page-content .title {
+    font-size: clamp(1.1rem, 2.5vh, 1.45rem);
+    margin-bottom: clamp(.4rem, 1.3vh, .7rem);
+  }
+
+  .page-content .workeduc-box .workeduc-content {
+    margin-bottom: clamp(.5rem, 1.5vh, .78rem);
+  }
+
+  .page-content .workeduc-content .year {
+    font-size: clamp(.7rem, 1.35vh, .85rem);
+  }
+
+  .page-content .workeduc-content h3 {
+    font-size: clamp(.82rem, 1.6vh, .95rem);
+    margin: clamp(.1rem, .38vh, .24rem) 0;
+  }
+
+  .page-content .workeduc-content p {
+    font-size: clamp(.73rem, 1.4vh, .82rem);
+    line-height: 1.45;
+  }
+
+  .page-content .services-box {
+    gap: clamp(.5rem, 1.3vh, 1rem);
+  }
+
+  .page-content .services-content h3 {
+    font-size: clamp(.75rem, 1.5vh, 1.05rem);
+  }
+
+  .page-content .skills-box-compact {
+    gap: clamp(.3rem, .95vh, .5rem);
+  }
+
+  .page-content .skills-box-compact span {
+    font-size: clamp(.64rem, 1.25vh, .74rem);
+    padding: clamp(.22rem, .62vh, .38rem) clamp(.36rem, 1vh, .6rem);
+  }
+
+  .page-content .contact-details li {
+    font-size: clamp(.72rem, 1.5vh, .88rem);
+  }
+
+  .page-content .contact-box .field {
+    font-size: clamp(.75rem, 1.6vh, .95rem);
+    padding: clamp(.4rem, 1vh, .65rem);
+    margin-bottom: clamp(.45rem, 1.2vh, .8rem);
+  }
+
+  .page-content .project-box .project-head h3 {
+    font-size: clamp(.95rem, 2vh, 1.25rem);
+  }
+
+  .page-content .project-box .project-summary,
+  .page-content .project-box .project-points li {
+    font-size: clamp(.72rem, 1.45vh, .9rem);
+  }
+
+  .page-content .project-box .project-points li {
+    margin-bottom: clamp(.3rem, .9vh, .55rem);
+  }
+
+  .page-content .portfolio-box .img-box {
+    height: clamp(7rem, 19vh, 13rem);
+  }
+
+  .page-content .portfolio-box .info-box p {
+    font-size: clamp(.72rem, 1.4vh, .9rem);
+  }
+
+  /* The profile page is height-constrained in the same way, so it scales with
+     the page too rather than only with the viewport width. */
+  .book-page.page-left .profile-page img {
+    max-width: clamp(80px, 14vh, 140px);
+    margin-bottom: clamp(.35rem, 1.1vh, .85rem);
+  }
+
+  .book-page.page-left .profile-page h2 {
+    font-size: clamp(1.15rem, 3vh, 1.85rem);
+    margin-bottom: clamp(.2rem, .75vh, .5rem);
+  }
+
+  .book-page.page-left .profile-page h3 {
+    font-size: clamp(.85rem, 2vh, 1.25rem);
+  }
+
+  .book-page.page-left .profile-page .social-media {
+    margin: clamp(.4rem, 1.1vh, .8rem) 0 clamp(.5rem, 1.4vh, 1rem);
+  }
+
+  .book-page.page-left .profile-page .social-media a {
+    width: clamp(1.9rem, 4.6vh, 2.5rem);
+    height: clamp(1.9rem, 4.6vh, 2.5rem);
+    font-size: clamp(1rem, 2.4vh, 1.3rem);
+  }
+
+  .book-page.page-left .profile-page p {
+    font-size: clamp(.72rem, 1.4vh, .88rem);
+    line-height: 1.5;
+  }
+
+  .book-page.page-left .profile-facts {
+    margin-top: clamp(.5rem, 1.4vh, 1rem);
+    gap: clamp(.25rem, .8vh, .4rem) clamp(.3rem, .9vh, .5rem);
+  }
+
+  .book-page.page-left .profile-facts li {
+    font-size: clamp(.64rem, 1.25vh, .78rem);
+    padding: clamp(.12rem, .45vh, .25rem) clamp(.35rem, 1vh, .6rem);
+  }
+
+  .book-page.page-left .profile-page .btn-box {
+    margin-top: clamp(.6rem, 1.9vh, 1.5rem);
+  }
+
+  .book-page.page-left .profile-page .btn {
+    height: clamp(2rem, 4.8vh, 2.5rem);
+    font-size: clamp(.75rem, 1.6vh, .9rem);
+    min-width: clamp(6.5rem, 16vh, 8rem);
+  }
+}
+
+/* ------------------------------------------------------------------
+   Page-relative type scale
+   The rules above scale with the viewport, which is only a proxy for
+   the size of a page. Where container queries are available we measure
+   the page itself, so a page that is narrow (near the 1024px floor) but
+   tall gets smaller type instead of overflowing. cqw/cqh below are 1% of
+   the page's own width/height.
+   ------------------------------------------------------------------ */
+@supports (container-type: size) {
+  @media (min-width: 1024px) and (min-aspect-ratio: 1/1) {
+    .page-content,
+    .book-page.page-left {
+      container-type: size;
+    }
+
+    .page-content {
+      /* A zero flex-basis keeps the page height independent of its content,
+         which size containment requires. */
+      flex: 1 1 0%;
+    }
+
+    .page-content .title {
+      font-size: clamp(1.05rem, min(4.4cqh, 6.4cqw), 1.6rem);
+      margin-bottom: clamp(.45rem, 2.2cqh, .8rem);
+    }
+
+    .page-content .workeduc-box .workeduc-content {
+      margin-bottom: clamp(.5rem, 2.6cqh, .9rem);
+    }
+
+    .page-content .workeduc-content .year {
+      font-size: clamp(.7rem, min(2.5cqh, 3.3cqw), .9rem);
+    }
+
+    .page-content .workeduc-content h3 {
+      font-size: clamp(.82rem, min(2.85cqh, 3.7cqw), 1rem);
+      margin: clamp(.1rem, .8cqh, .28rem) 0;
+    }
+
+    .page-content .workeduc-content p {
+      font-size: clamp(.72rem, min(2.4cqh, 3.1cqw), .85rem);
+    }
+
+    .page-content .services-box {
+      gap: clamp(.45rem, 2cqh, 1rem);
+    }
+
+    .page-content .services-content h3 {
+      font-size: clamp(.72rem, min(2.5cqh, 3.4cqw), 1.05rem);
+    }
+
+    .page-content .skills-box-compact {
+      gap: clamp(.3rem, 1.5cqh, .55rem);
+    }
+
+    .page-content .skills-box-compact span {
+      font-size: clamp(.62rem, min(2.1cqh, 2.9cqw), .8rem);
+      padding: clamp(.22rem, .65cqh, .45rem) clamp(.36rem, 1.1cqh, .7rem);
+    }
+
+    .page-content .project-box .project-head h3 {
+      font-size: clamp(.9rem, min(3.4cqh, 4.6cqw), 1.25rem);
+    }
+
+    .page-content .project-box .project-role {
+      font-size: clamp(.7rem, min(2.4cqh, 3.2cqw), .85rem);
+    }
+
+    .page-content .project-box .project-summary,
+    .page-content .project-box .project-points li {
+      font-size: clamp(.7rem, min(2.4cqh, 3.1cqw), .88rem);
+    }
+
+    .page-content .project-box .project-points li {
+      margin-bottom: clamp(.25rem, 1.4cqh, .55rem);
+    }
+
+    .page-content .project-box .tech-chips span {
+      font-size: clamp(.62rem, min(2cqh, 2.7cqw), .75rem);
+    }
+
+    .page-content .portfolio-box .img-box {
+      height: clamp(6rem, 32cqh, 13rem);
+    }
+
+    .page-content .portfolio-box .info-box .info-title h3 {
+      font-size: clamp(.9rem, min(3.2cqh, 4.4cqw), 1.3rem);
+    }
+
+    .page-content .portfolio-box .info-box p {
+      font-size: clamp(.7rem, min(2.4cqh, 3.1cqw), .9rem);
+    }
+
+    .page-content .contact-details li {
+      font-size: clamp(.72rem, min(2.5cqh, 3.2cqw), .9rem);
+    }
+
+    .page-content .contact-box .field {
+      font-size: clamp(.75rem, min(2.6cqh, 3.4cqw), 1rem);
+      padding: clamp(.4rem, 1.7cqh, .7rem);
+      margin-bottom: clamp(.45rem, 2cqh, .9rem);
+    }
+
+    /* Profile page: the container is the page itself. */
+    .book-page.page-left .profile-page img {
+      max-width: clamp(80px, min(22cqh, 40cqw), 150px);
+      margin-bottom: clamp(.35rem, 1.7cqh, 1rem);
+    }
+
+    .book-page.page-left .profile-page h2 {
+      font-size: clamp(1.15rem, min(4.3cqh, 8cqw), 2rem);
+    }
+
+    .book-page.page-left .profile-page h3 {
+      font-size: clamp(.82rem, min(2.9cqh, 5cqw), 1.25rem);
+    }
+
+    .book-page.page-left .profile-page p {
+      font-size: clamp(.72rem, min(2.1cqh, 3.2cqw), .92rem);
+    }
+
+    .book-page.page-left .profile-facts li {
+      font-size: clamp(.62rem, min(1.85cqh, 2.8cqw), .78rem);
+    }
+  }
+}
+
 /* Profile Page Styles */
 .profile-page {
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  max-width: 90%;
+  width: 100%;
   margin: 0 auto;
 }
 
 .profile-page img {
   max-width: 160px;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
   border-radius: 50%;
   border: .25rem solid var(--main-color);
   margin-bottom: 1rem;
@@ -395,28 +729,30 @@ body {
   line-height: 1.3;
 }
 
-/* Skills Box */
+/* Skills Box
+   Chips flow inline and size themselves to their label. A fixed grid used to
+   force long words like "Orchestration" into columns narrower than the word,
+   which pushed the text outside the chip. */
 .skills-box-compact {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
-  gap: .6rem;
-  padding: 0 .5rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: .5rem;
   margin-bottom: 2rem;
 }
 
 .skills-box-compact span {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+  display: inline-flex;
   align-items: center;
-  height: 3.5rem;
+  gap: .35rem;
+  white-space: nowrap;
   border: var(--border);
   border-radius: .3rem;
   font-weight: 500;
-  font-size: clamp(.65rem, 1.8vw, .75rem);
+  font-size: clamp(.7rem, 1.8vw, .8rem);
+  line-height: 1.35;
   transition: .3s ease;
-  text-align: center;
-  padding: .3rem;
+  padding: .4rem .65rem;
   background: rgba(0, 171, 240, 0.05);
   color: var(--text-color);
 }
@@ -429,9 +765,8 @@ body {
 }
 
 .skills-box-compact span i {
-  font-size: clamp(1.2rem, 3vw, 1.4rem);
+  font-size: 1.1em;
   color: var(--main-color);
-  margin-bottom: .2rem;
 }
 
 /* Portfolio Box */
@@ -501,6 +836,143 @@ body {
   flex-wrap: wrap;
   gap: 1rem;
   margin-bottom: 2rem;
+}
+
+/* Jacques van Heerden (35317906) - Profile Quick Facts */
+.profile-facts {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: .4rem .5rem;
+  margin-top: 1rem;
+  width: 100%;
+}
+
+.profile-facts li {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  border: var(--border);
+  border-radius: 1rem;
+  padding: .25rem .6rem;
+  font-size: clamp(.7rem, 1.7vw, .78rem);
+  line-height: 1.3;
+  color: var(--second-text-color);
+  background: rgba(0, 171, 240, 0.05);
+}
+
+.profile-facts li i {
+  font-size: 1rem;
+  color: var(--main-color);
+}
+
+/* Jacques van Heerden (35317906) - Flagship Project Box */
+.project-box .project-head {
+  border-left: var(--border);
+  padding-left: .8rem;
+  margin-bottom: .8rem;
+}
+
+.project-box .project-head h3 {
+  font-size: clamp(1rem, 3vw, 1.25rem);
+  line-height: 1.3;
+  color: var(--text-color);
+}
+
+.project-box .project-role {
+  display: block;
+  margin-top: .2rem;
+  font-size: clamp(.75rem, 1.8vw, .85rem);
+  color: var(--main-color);
+}
+
+.project-box .project-summary {
+  font-size: clamp(.78rem, 1.9vw, .9rem);
+  line-height: 1.5;
+  color: var(--text-color);
+  margin-bottom: .8rem;
+}
+
+.project-box .project-points {
+  list-style: none;
+  margin-bottom: 1rem;
+}
+
+.project-box .project-points li {
+  position: relative;
+  padding-left: 1.1rem;
+  margin-bottom: .5rem;
+  font-size: clamp(.75rem, 1.8vw, .875rem);
+  line-height: 1.45;
+  color: var(--second-text-color);
+}
+
+.project-box .project-points li::before {
+  content: '';
+  position: absolute;
+  top: .45em;
+  left: 0;
+  width: .45rem;
+  height: .45rem;
+  background: var(--main-color);
+  border-radius: 50%;
+}
+
+.project-box .tech-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+  margin-bottom: 2rem;
+}
+
+.project-box .tech-chips span {
+  border: var(--border);
+  border-radius: .3rem;
+  padding: .25rem .5rem;
+  font-size: clamp(.68rem, 1.7vw, .75rem);
+  font-weight: 500;
+  color: var(--text-color);
+  background: rgba(0, 171, 240, 0.05);
+  transition: .3s ease;
+}
+
+.project-box .tech-chips span:hover,
+.project-box .tech-chips span:active {
+  box-shadow: var(--box-shadow);
+  background: rgba(0, 171, 240, 0.1);
+}
+
+/* Jacques van Heerden (35317906) - Contact Details */
+.contact-details {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: .4rem 1rem;
+}
+
+.contact-details li {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  font-size: clamp(.78rem, 1.9vw, .9rem);
+  color: var(--second-text-color);
+}
+
+.contact-details li i {
+  font-size: 1.1rem;
+  color: var(--main-color);
+}
+
+.contact-details a {
+  color: var(--second-text-color);
+  transition: .3s ease;
+}
+
+.contact-details a:hover,
+.contact-details a:active {
+  color: var(--main-color);
 }
 
 /* Contact Box */
@@ -681,7 +1153,7 @@ body {
 }
 
 /* Mobile Specific Adjustments */
-@media (max-width: 768px) {
+@media (max-width: 1023px), (max-aspect-ratio: 999/1000) {
   .nextprev-btn,
   .number-page,
   .back-profile {
@@ -738,8 +1210,8 @@ body {
   }
 
   .skills-box-compact {
-    grid-template-columns: repeat(auto-fit, minmax(55px, 1fr));
-    gap: .5rem;
+    justify-content: flex-start;
+    gap: .45rem;
   }
 
   .portfolio-box .btn-box .btn {
@@ -783,8 +1255,11 @@ body {
   }
 
   .skills-box-compact {
-    grid-template-columns: repeat(auto-fit, minmax(50px, 1fr));
-    gap: .4rem;
+    gap: .35rem;
+  }
+
+  .skills-box-compact span {
+    padding: .35rem .5rem;
   }
 
   .contact-box {

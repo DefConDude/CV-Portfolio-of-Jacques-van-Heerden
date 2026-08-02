@@ -1,0 +1,36 @@
+{
+  "name": "cv-portfolio-of-jacques-van-heerden",
+  "version": "1.1.0",
+  "description": "Interactive CV portfolio of Jacques van Heerden, Senior AI Engineer.",
+  "main": "script.js",
+  "scripts": {
+    "test": "playwright test",
+    "test:layout": "playwright test tests/layout.spec.js",
+    "test:content": "playwright test tests/content.spec.js",
+    "test:interaction": "playwright test tests/interaction.spec.js",
+    "test:visual": "playwright test tests/visual.spec.js",
+    "test:visual:update": "playwright test tests/visual.spec.js --update-snapshots",
+    "test:report": "playwright show-report test-results/html",
+    "setup": "playwright install chromium"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DefConDude/CV-Portfolio-of-Jacques-van-Heerden.git"
+  },
+  "keywords": [
+    "portfolio",
+    "cv",
+    "ai-engineer"
+  ],
+  "author": "Jacques van Heerden",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/DefConDude/CV-Portfolio-of-Jacques-van-Heerden/issues"
+  },
+  "homepage": "https://github.com/DefConDude/CV-Portfolio-of-Jacques-van-Heerden#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "pdfjs-dist": "^4.10.38"
+  }
+}

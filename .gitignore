@@ -1,0 +1,8 @@
+node_modules/
+
+# Playwright output. Snapshot baselines under tests/*-snapshots/ are committed
+# on purpose; these directories are generated per run.
+test-results/
+playwright-report/
+blob-report/
+.playwright/
