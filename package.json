@@ -9,6 +9,7 @@
     "test:content": "playwright test tests/content.spec.js",
     "test:interaction": "playwright test tests/interaction.spec.js",
     "test:visual": "playwright test tests/visual.spec.js",
+    "test:animation": "playwright test tests/animation.spec.js",
     "test:visual:update": "playwright test tests/visual.spec.js --update-snapshots",
     "test:report": "playwright show-report test-results/html",
     "setup": "playwright install chromium"
