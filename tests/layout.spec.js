@@ -94,10 +94,11 @@ for (const viewport of VIEWPORTS) {
       const overflowing = await page.evaluate(() => {
         const bad = [];
         for (const el of document.querySelectorAll('.skills-box-compact span')) {
-          if (el.scrollHeight > el.clientHeight + 1) {
+          if (el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1) {
             bad.push({
               label: el.textContent.trim(),
-              overflowBy: el.scrollHeight - el.clientHeight,
+              overflowH: el.scrollHeight - el.clientHeight,
+              overflowW: el.scrollWidth - el.clientWidth,
             });
           }
         }
@@ -105,7 +106,7 @@ for (const viewport of VIEWPORTS) {
       });
       expect(
         overflowing,
-        `skill labels taller than their chip: ${JSON.stringify(overflowing)}`
+        `skill labels taller or wider than their chip: ${JSON.stringify(overflowing)}`
       ).toEqual([]);
     });
 

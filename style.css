@@ -745,6 +745,9 @@ body {
   display: inline-flex;
   align-items: center;
   gap: .35rem;
+  /* nowrap is fine in the book layout where container queries shrink the font
+     to fit the page. On mobile the chips are wider so wrapping is safe; this
+     is overridden in the stacked-layout media block. */
   white-space: nowrap;
   border: var(--border);
   border-radius: .3rem;
@@ -1214,6 +1217,12 @@ body {
     gap: .45rem;
   }
 
+  .skills-box-compact span {
+    white-space: normal;
+    text-align: center;
+    line-height: 1.3;
+  }
+
   .portfolio-box .btn-box .btn {
     min-width: 7rem;
     height: 2.3rem;
@@ -1259,6 +1268,9 @@ body {
   }
 
   .skills-box-compact span {
+    white-space: normal;
+    text-align: center;
+    line-height: 1.3;
     padding: .35rem .5rem;
   }
 
