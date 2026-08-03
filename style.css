@@ -323,6 +323,7 @@ body {
   }
 
   .page-content .skills-box-compact span {
+    white-space: nowrap;
     font-size: clamp(.64rem, 1.25vh, .74rem);
     padding: clamp(.22rem, .62vh, .38rem) clamp(.36rem, 1vh, .6rem);
   }
@@ -745,15 +746,18 @@ body {
   display: inline-flex;
   align-items: center;
   gap: .35rem;
-  /* nowrap is fine in the book layout where container queries shrink the font
-     to fit the page. On mobile the chips are wider so wrapping is safe; this
-     is overridden in the stacked-layout media block. */
-  white-space: nowrap;
+  /* Text wraps by default so labels never overflow their chip on any device.
+     The book layout applies nowrap via a scoped media rule where container
+     queries keep the font small enough to fit. */
+  white-space: normal;
+  text-align: center;
+  line-height: 1.3;
+  overflow-wrap: break-word;
+  word-break: break-word;
   border: var(--border);
   border-radius: .3rem;
   font-weight: 500;
   font-size: clamp(.7rem, 1.8vw, .8rem);
-  line-height: 1.35;
   transition: .3s ease;
   padding: .4rem .65rem;
   background: rgba(0, 171, 240, 0.05);
@@ -1217,12 +1221,6 @@ body {
     gap: .45rem;
   }
 
-  .skills-box-compact span {
-    white-space: normal;
-    text-align: center;
-    line-height: 1.3;
-  }
-
   .portfolio-box .btn-box .btn {
     min-width: 7rem;
     height: 2.3rem;
@@ -1268,9 +1266,6 @@ body {
   }
 
   .skills-box-compact span {
-    white-space: normal;
-    text-align: center;
-    line-height: 1.3;
     padding: .35rem .5rem;
   }
 
