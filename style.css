@@ -11,15 +11,15 @@
 }
 
 :root {
-  /* Mint Group / Deloitte-inspired corporate palette */
-  --bg-color: #0a1a1a;
-  --main-color: #86bc25;
-  --main-color-rgb: 134, 188, 37;
-  --text-color: #f2f2f2;
-  --second-text-color: #b8c4b8;
+  /* Mint Group brand palette — from their logo and corporate identity */
+  --bg-color: #002b5c;
+  --main-color: #7ab800;
+  --main-color-rgb: 122, 184, 0;
+  --text-color: #f2f4f7;
+  --second-text-color: #b8c8d8;
   --white-color: #fff;
-  --cover-color: linear-gradient(135deg, #86bc25, #4a8c00);
-  --pages-color: linear-gradient(160deg, #111f1f, #1a2e2a);
+  --cover-color: linear-gradient(135deg, #7ab800, #5a9a00);
+  --pages-color: linear-gradient(160deg, #001f42, #002e5e);
   --border: .125rem solid var(--main-color);
   --box-shadow: 0 0 .6rem rgba(var(--main-color-rgb), .3);
 }
