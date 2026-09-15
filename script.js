@@ -18,7 +18,13 @@ const pages = Array.from(document.querySelectorAll('.book-page.page-right'));
    .book-page.page-right / .cover.cover-right in style.css. Restacking before
    the flip finishes is what let pages show the wrong neighbour mid-turn. */
 const FLIP_MS = 1000;
-const STAGGER_MS = 200;
+
+/* Gap between the START of one sheet's flip and the next during the intro.
+   For a book-like, one-page-at-a-time turn each sheet should be most of the
+   way through its flip before the next begins. A stagger shorter than the flip
+   makes several sheets move together (the "5-4-3 all at once" glitch), so we
+   let each flip nearly finish (80%) before releasing the next one. */
+const INTRO_STAGGER_MS = Math.round(FLIP_MS * 0.8);
 
 /* A closed book stacks page 1 on top; an opened one stacks the last turned
    page on top. Separating the two keeps the arrows and the bulk animations
@@ -76,30 +82,32 @@ pageTurnBtn.forEach((el) => {
 /****************************************************************/
 /* Jacques van Heerden (35317906) - Bulk Open / Close          */
 /****************************************************************/
-/* Opens every page in order, front to back, so the book ends on the last page. */
+/* Opens every sheet in order, front to back, one turn at a time so it reads
+   like flipping through a real book. Returns when the last sheet has settled. */
 function openBook(startDelay = 100) {
     pages.forEach((pageEl, index) => {
-        setTimeout(() => openPage(pageEl, index), startDelay + (index + 1) * STAGGER_MS);
+        setTimeout(() => openPage(pageEl, index), startDelay + index * INTRO_STAGGER_MS);
     });
+    return startDelay + (pages.length - 1) * INTRO_STAGGER_MS + FLIP_MS;
 }
 
-/* Closes every page from the back forwards, ending on the profile spread.
-   Walking a reversed copy avoids the index bookkeeping that previously left
-   pages stranded whenever the page count changed. Returns the timestamp at
-   which the very last page has finished flipping and restacking, so callers
-   can chain follow-up steps without guessing at a fixed delay. */
+/* Closes every sheet from the back forwards, one turn at a time, ending on the
+   profile spread. Walking a reversed copy avoids the index bookkeeping that
+   previously left pages stranded whenever the page count changed. Returns the
+   timestamp at which the very last sheet has finished flipping and restacking,
+   so callers can chain follow-up steps without guessing at a fixed delay. */
 function closeBook(startDelay = 0) {
     pages
         .slice()
         .reverse()
         .forEach((pageEl, step) => {
             const index = pages.length - 1 - step;
-            setTimeout(() => closePage(pageEl, index), startDelay + (step + 1) * STAGGER_MS);
+            setTimeout(() => closePage(pageEl, index), startDelay + step * INTRO_STAGGER_MS);
         });
 
-    // Last page starts flipping at startDelay + pages.length * STAGGER_MS and
-    // needs FLIP_MS more to land and restack its z-index.
-    return startDelay + pages.length * STAGGER_MS + FLIP_MS;
+    // The last sheet starts flipping at startDelay + (n-1) * INTRO_STAGGER_MS
+    // and needs FLIP_MS more to land and restack its z-index.
+    return startDelay + (pages.length - 1) * INTRO_STAGGER_MS + FLIP_MS;
 }
 
 /****************************************************************/
@@ -146,7 +154,7 @@ if (isBookLayout()) {
          4. The profile spread is raised to the front strictly AFTER every page
             has finished flipping closed. Raising it mid-flip is what used to
             pop the profile to the front and read as a "jump to home". */
-    const COVER_OPEN_AT = 2100;
+    const COVER_OPEN_AT = 1400;
     const COVER_SETTLE_AT = COVER_OPEN_AT + FLIP_MS; // cover finished flipping
     const CLOSE_START_AT = COVER_SETTLE_AT;          // pages close after cover clears
 

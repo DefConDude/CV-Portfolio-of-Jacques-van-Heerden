@@ -95,7 +95,7 @@ test.describe('intro animation sequence (book layout)', () => {
         document.querySelectorAll('.book-page.page-right')
       );
 
-      while (performance.now() - start < 6000) {
+      while (performance.now() - start < 8000) {
         const profileZ = Number(pageLeft.style.zIndex || 0);
         const stillTurning = rightPages.filter((p) =>
           p.classList.contains('turn')
@@ -137,7 +137,7 @@ test.describe('intro animation sequence (book layout)', () => {
       let coverClearedAt = null;
       let firstCloseAt = null;
 
-      while (performance.now() - start < 5000) {
+      while (performance.now() - start < 8000) {
         const now = Math.round(performance.now() - start);
         if (coverClearedAt === null && cover.style.zIndex === '-1') {
           coverClearedAt = now;
@@ -161,6 +161,58 @@ test.describe('intro animation sequence (book layout)', () => {
     expect(timeline.coverClearedAt).toBeLessThanOrEqual(timeline.firstCloseAt);
   });
 
+  test('sheets close one at a time, not several at once', async ({ page }) => {
+    // Regression for "8, 7, then 5-4-3 all together, then skips to 1". Each
+    // sheet must be well into its own flip before the next one starts, so the
+    // intro reads like turning pages in a real book. We record the moment each
+    // sheet loses its .turn class and assert those moments are spaced out by a
+    // healthy fraction of the flip duration rather than firing on top of each
+    // other.
+    await page.setViewportSize({ width: BOOK_VP.width, height: BOOK_VP.height });
+    await page.goto(
+      require('url').pathToFileURL(
+        require('path').join(__dirname, '..', 'index.html')
+      ).href,
+      { waitUntil: 'load' }
+    );
+
+    const closeTimes = await page.evaluate(async () => {
+      const start = performance.now();
+      const rightPages = Array.from(
+        document.querySelectorAll('.book-page.page-right')
+      );
+      const seen = new Map(); // id -> timestamp it first lost .turn
+
+      while (performance.now() - start < 8000 && seen.size < rightPages.length) {
+        for (const p of rightPages) {
+          if (!seen.has(p.id) && !p.classList.contains('turn')) {
+            seen.set(p.id, performance.now() - start);
+          }
+        }
+        await new Promise((r) => requestAnimationFrame(r));
+      }
+      // Return the close timestamps sorted in the order they happened.
+      return Array.from(seen.values()).sort((a, b) => a - b);
+    });
+
+    // Every sheet must have closed.
+    expect(closeTimes.length).toBe(4);
+
+    // Consecutive closes must be spaced. The flip is 1s; sequential turns are
+    // staggered at ~0.8s. Under parallel test load rAF sampling can miss the
+    // exact frame a sheet flips, which only ever makes a measured gap look
+    // SMALLER than reality — so we assert a conservative floor of 300ms. The
+    // broken "all at once" cascade spaced sheets ~0-200ms apart, so 300ms
+    // still catches that regression while tolerating sampling jitter.
+    for (let i = 1; i < closeTimes.length; i++) {
+      const gap = closeTimes[i] - closeTimes[i - 1];
+      expect(
+        gap,
+        `sheets ${i - 1} and ${i} closed only ${Math.round(gap)}ms apart`
+      ).toBeGreaterThan(300);
+    }
+  });
+
   test('no JS errors during the intro sequence', async ({ page }) => {
     const errors = [];
     page.on('pageerror', (e) => errors.push(String(e)));
@@ -173,7 +225,7 @@ test.describe('intro animation sequence (book layout)', () => {
       { waitUntil: 'load' }
     );
     // Let the full intro play out
-    await page.waitForTimeout(5000);
+    await page.waitForTimeout(7000);
 
     const real = errors.filter(
       (e) => !/net::|Failed to load resource|boxicons|fonts\.google/i.test(e)
@@ -376,7 +428,7 @@ test.describe('animation performance', () => {
     });
 
     // Let the full intro animation play
-    await page.waitForTimeout(5000);
+    await page.waitForTimeout(7000);
 
     const cls = await page.evaluate(() => window.__cls);
     // CLS should be essentially 0 — animations use transforms not layout
