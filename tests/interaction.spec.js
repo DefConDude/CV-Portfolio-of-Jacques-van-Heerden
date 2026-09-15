@@ -90,11 +90,22 @@ test.describe('book layout interactions', () => {
       if (msg.type() === 'error') errors.push(msg.text());
     });
 
+    // Turn a page forward with the arrow, then back — the everyday flow.
     await page.locator('#turn-1 .page-front .next-btn').click();
+    await expect(page.locator('#turn-1')).toHaveClass(/\bturn\b/);
+    await page.locator('#turn-1 .page-back .back').click();
+    await expect(page.locator('#turn-1')).not.toHaveClass(/\bturn\b/);
+
+    // From the profile, "Contact Me" fans every sheet open one at a time; let
+    // it fully settle before driving the next action.
     await page.locator('.btn.contact-me').click();
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(2500);
+    await expect(page.locator('#turn-4 .page-back .contact-box')).toBeVisible();
+
+    // "Back to Profile" closes the whole book again.
     await page.locator('.back-profile').click();
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(2500);
+    expect(await turnedIds(page)).toEqual([]);
 
     // Ignore font/CDN fetch noise, which says nothing about our code.
     const real = errors.filter((e) => !/net::|Failed to load resource|boxicons|fonts\.google/i.test(e));

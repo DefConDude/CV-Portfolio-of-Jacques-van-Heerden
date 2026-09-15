@@ -75,6 +75,23 @@ body {
     }
   }
 
+  /* When the intro has already played this session we snap the book straight to
+     its open state. `.skipped-intro` permanently kills the wrapper fade so the
+     book is simply present, while `.skip-intro` freezes the cover/page flip
+     transitions for just the first frame(s) while we jump to the final layout.
+     The script removes `.skip-intro` on the next frame so manual page turns
+     animate normally, but keeps `.skipped-intro` so the fade never kicks in. */
+  html.skipped-intro .wrapper {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  html.skip-intro .cover.cover-right,
+  html.skip-intro .book-page.page-right {
+    transition: none !important;
+  }
+
   .cover {
     position: absolute;
     top: 0;

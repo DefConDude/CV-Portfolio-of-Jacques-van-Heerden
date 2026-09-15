@@ -10,6 +10,15 @@
     <link rel="stylesheet" href="style.css">
     <!-- Jacques van Heerden (35317906) - Box Icons Import -->
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <!-- Jacques van Heerden (35317906) - Skip the intro fade before first paint
+         on return visits so the book never flashes at opacity 0. -->
+    <script>
+        try {
+            if (sessionStorage.getItem('jvh-intro-played') === '1') {
+                document.documentElement.classList.add('skipped-intro', 'skip-intro');
+            }
+        } catch (e) { /* storage blocked: intro will simply play */ }
+    </script>
 </head>
 
 <body>

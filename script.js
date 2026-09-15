@@ -19,18 +19,26 @@ const pages = Array.from(document.querySelectorAll('.book-page.page-right'));
    the flip finishes is what let pages show the wrong neighbour mid-turn. */
 const FLIP_MS = 1000;
 
-/* Gap between the START of one sheet's flip and the next during the intro.
+/* Gap between the START of one sheet's flip and the next.
    For a book-like, one-page-at-a-time turn each sheet should be most of the
    way through its flip before the next begins. A stagger shorter than the flip
-   makes several sheets move together (the "5-4-3 all at once" glitch), so we
-   let each flip nearly finish (80%) before releasing the next one. */
+   makes several sheets move together (the "5-4-3 all at once" glitch).
+
+   The on-load intro is leisurely (80% of the flip) so it reads like slowly
+   fanning a book open. The "Contact Me" / "Back to Profile" buttons are a
+   deliberate user action, so they use a snappier stagger to feel responsive
+   while still turning one page at a time. */
 const INTRO_STAGGER_MS = Math.round(FLIP_MS * 0.8);
+const BUTTON_STAGGER_MS = Math.round(FLIP_MS * 0.35);
 
 /* A closed book stacks page 1 on top; an opened one stacks the last turned
    page on top. Separating the two keeps the arrows and the bulk animations
    from fighting over z-index. */
 const closedZIndex = (index) => 10 + (pages.length - 1 - index);
-const openedZIndex = (index) => 20 + index;
+/* Opened pages start at 21 so a turned page always sits ABOVE the profile
+   spread (which rests at z-index 20). A tie let DOM order decide and could
+   leave the profile's buttons unclickable behind a just-turned page. */
+const openedZIndex = (index) => 21 + index;
 
 function openPage(pageEl, index) {
     pageEl.classList.add('turn');
@@ -83,31 +91,33 @@ pageTurnBtn.forEach((el) => {
 /* Jacques van Heerden (35317906) - Bulk Open / Close          */
 /****************************************************************/
 /* Opens every sheet in order, front to back, one turn at a time so it reads
-   like flipping through a real book. Returns when the last sheet has settled. */
-function openBook(startDelay = 100) {
+   like flipping through a real book. `stagger` controls the pace. Returns when
+   the last sheet has settled. */
+function openBook(startDelay = 100, stagger = INTRO_STAGGER_MS) {
     pages.forEach((pageEl, index) => {
-        setTimeout(() => openPage(pageEl, index), startDelay + index * INTRO_STAGGER_MS);
+        setTimeout(() => openPage(pageEl, index), startDelay + index * stagger);
     });
-    return startDelay + (pages.length - 1) * INTRO_STAGGER_MS + FLIP_MS;
+    return startDelay + (pages.length - 1) * stagger + FLIP_MS;
 }
 
 /* Closes every sheet from the back forwards, one turn at a time, ending on the
    profile spread. Walking a reversed copy avoids the index bookkeeping that
-   previously left pages stranded whenever the page count changed. Returns the
-   timestamp at which the very last sheet has finished flipping and restacking,
-   so callers can chain follow-up steps without guessing at a fixed delay. */
-function closeBook(startDelay = 0) {
+   previously left pages stranded whenever the page count changed. `stagger`
+   controls the pace. Returns the timestamp at which the very last sheet has
+   finished flipping and restacking, so callers can chain follow-up steps
+   without guessing at a fixed delay. */
+function closeBook(startDelay = 0, stagger = INTRO_STAGGER_MS) {
     pages
         .slice()
         .reverse()
         .forEach((pageEl, step) => {
             const index = pages.length - 1 - step;
-            setTimeout(() => closePage(pageEl, index), startDelay + step * INTRO_STAGGER_MS);
+            setTimeout(() => closePage(pageEl, index), startDelay + step * stagger);
         });
 
-    // The last sheet starts flipping at startDelay + (n-1) * INTRO_STAGGER_MS
-    // and needs FLIP_MS more to land and restack its z-index.
-    return startDelay + (pages.length - 1) * INTRO_STAGGER_MS + FLIP_MS;
+    // The last sheet starts flipping at startDelay + (n-1) * stagger and needs
+    // FLIP_MS more to land and restack its z-index.
+    return startDelay + (pages.length - 1) * stagger + FLIP_MS;
 }
 
 /****************************************************************/
@@ -120,7 +130,7 @@ if (contactMeBtn) {
         // In the stacked layout the anchor should just scroll to the section.
         if (!isBookLayout()) return;
         event.preventDefault();
-        openBook();
+        openBook(100, BUTTON_STAGGER_MS);
     });
 }
 
@@ -133,7 +143,7 @@ if (backProfileBtn) {
     backProfileBtn.addEventListener('click', (event) => {
         if (!isBookLayout()) return;
         event.preventDefault();
-        closeBook();
+        closeBook(0, BUTTON_STAGGER_MS);
     });
 }
 
@@ -141,11 +151,60 @@ if (backProfileBtn) {
 /* Jacques van Heerden (35317906) - Opening Animations         */
 /****************************************************************/
 /* The markup ships with every page turned so the closed cover is all that
-   shows on load. The intro then opens the cover and lays the pages down. */
-if (isBookLayout()) {
-    const coverRight = document.querySelector('.cover.cover-right');
-    const pageLeft = document.querySelector('.book-page.page-left');
+   shows on load. The fancy intro (cover opens, pages fan closed one at a time,
+   land on the profile) is a lovely first impression but it takes several
+   seconds and gets repetitive on every refresh. So we only play it once per
+   browser session and skip straight to the open profile on later visits. */
+const INTRO_SEEN_KEY = 'jvh-intro-played';
 
+/* sessionStorage can throw in private mode or when storage is blocked, so both
+   helpers fail safe: if we cannot read the flag we simply play the intro. */
+function introAlreadyPlayed() {
+    try {
+        return sessionStorage.getItem(INTRO_SEEN_KEY) === '1';
+    } catch (_) {
+        return false;
+    }
+}
+
+function markIntroPlayed() {
+    try {
+        sessionStorage.setItem(INTRO_SEEN_KEY, '1');
+    } catch (_) {
+        /* no-op: worst case the intro plays again next load */
+    }
+}
+
+/* Snaps the book to the exact state the intro ends on — cover flipped out of
+   the way, every sheet laid flat and restacked, profile on top — with no
+   motion at all. Used on refreshes once the intro has been seen. */
+function settleBookOpenInstantly(coverRight, pageLeft) {
+    // `.skipped-intro` permanently disables the wrapper fade-in; `.skip-intro`
+    // additionally freezes the flip transitions for the first frame(s) so
+    // nothing animates while we jump to the final layout.
+    document.documentElement.classList.add('skipped-intro', 'skip-intro');
+
+    coverRight.classList.add('turn');
+    coverRight.style.zIndex = '-1';
+
+    pages.forEach((pageEl, index) => {
+        pageEl.classList.remove('turn');
+        pageEl.style.zIndex = closedZIndex(index);
+    });
+
+    pageLeft.style.zIndex = '20';
+
+    // Re-enable the flip transitions on the next frame so manual page turns
+    // still animate. The wrapper fade stays disabled via .skipped-intro.
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove('skip-intro');
+        });
+    });
+}
+
+/* Plays the full choreographed intro and returns the timestamp it settles at. */
+function playIntro(coverRight, pageLeft) {
     /* Timeline, all derived from the flip constants so nothing drifts when the
        page count changes:
          1. The cover sits closed, then flips open.
@@ -168,4 +227,18 @@ if (isBookLayout()) {
     setTimeout(() => {
         pageLeft.style.zIndex = 20;
     }, closeSettledAt);
+
+    return closeSettledAt;
+}
+
+if (isBookLayout()) {
+    const coverRight = document.querySelector('.cover.cover-right');
+    const pageLeft = document.querySelector('.book-page.page-left');
+
+    if (introAlreadyPlayed()) {
+        settleBookOpenInstantly(coverRight, pageLeft);
+    } else {
+        playIntro(coverRight, pageLeft);
+        markIntroPlayed();
+    }
 }

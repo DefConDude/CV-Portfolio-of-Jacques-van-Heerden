@@ -234,6 +234,104 @@ test.describe('intro animation sequence (book layout)', () => {
   });
 });
 
+test.describe('intro plays once per session', () => {
+  const pageUrl = require('url').pathToFileURL(
+    require('path').join(__dirname, '..', 'index.html')
+  ).href;
+
+  test('a fresh session plays the full intro (wrapper starts hidden)', async ({ page }) => {
+    await page.setViewportSize({ width: BOOK_VP.width, height: BOOK_VP.height });
+    await page.goto(pageUrl, { waitUntil: 'domcontentloaded' });
+
+    // On the very first visit the wrapper fades in from opacity 0.
+    const initialOpacity = await page.evaluate(
+      () => getComputedStyle(document.querySelector('.wrapper')).opacity
+    );
+    expect(Number(initialOpacity)).toBeLessThan(0.5);
+
+    // And the session flag gets set so later loads skip the intro.
+    const flag = await page.evaluate(() =>
+      sessionStorage.getItem('jvh-intro-played')
+    );
+    expect(flag).toBe('1');
+  });
+
+  test('reloading in the same session skips the intro and opens instantly', async ({ page }) => {
+    await page.setViewportSize({ width: BOOK_VP.width, height: BOOK_VP.height });
+
+    // First visit: play the intro through to the end.
+    await page.goto(pageUrl, { waitUntil: 'load' });
+    await page.waitForFunction(
+      () =>
+        Array.from(document.querySelectorAll('.book-page.page-right')).every(
+          (el) => !el.classList.contains('turn') && el.style.zIndex !== ''
+        ),
+      null,
+      { timeout: 15000 }
+    );
+
+    // Reload: sessionStorage persists across a reload, so the intro is skipped.
+    await page.reload({ waitUntil: 'domcontentloaded' });
+
+    // Almost immediately the book should already be open on the profile: the
+    // wrapper is fully visible and every sheet is laid flat with no flipping.
+    await page.waitForTimeout(150);
+
+    const state = await page.evaluate(() => ({
+      opacity: Number(getComputedStyle(document.querySelector('.wrapper')).opacity),
+      anyTurned: Array.from(
+        document.querySelectorAll('.book-page.page-right')
+      ).some((el) => el.classList.contains('turn')),
+      profileZ: Number(
+        document.querySelector('.book-page.page-left').style.zIndex || 0
+      ),
+      coverZ: document.querySelector('.cover.cover-right').style.zIndex,
+    }));
+
+    expect(state.opacity).toBeGreaterThan(0.9); // no slow fade-in
+    expect(state.anyTurned).toBe(false); // pages already laid flat
+    expect(state.profileZ).toBe(20); // profile already on top
+    expect(state.coverZ).toBe('-1'); // cover already tucked away
+  });
+
+  test('the skip path settles without a long delay', async ({ page }) => {
+    await page.setViewportSize({ width: BOOK_VP.width, height: BOOK_VP.height });
+
+    // Prime the session flag directly, then load once.
+    await page.goto(pageUrl, { waitUntil: 'domcontentloaded' });
+    await page.evaluate(() => sessionStorage.setItem('jvh-intro-played', '1'));
+    await page.reload({ waitUntil: 'domcontentloaded' });
+
+    // The full choreographed intro takes ~5.8s; the skip path must be settled
+    // far sooner. Give it a generous 500ms and require it to already be open.
+    await page.waitForTimeout(500);
+    const anyTurned = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('.book-page.page-right')).some((el) =>
+        el.classList.contains('turn')
+      )
+    );
+    expect(anyTurned).toBe(false);
+  });
+
+  test('manual page turns still animate after the skip path', async ({ page }) => {
+    await page.setViewportSize({ width: BOOK_VP.width, height: BOOK_VP.height });
+
+    await page.goto(pageUrl, { waitUntil: 'domcontentloaded' });
+    await page.evaluate(() => sessionStorage.setItem('jvh-intro-played', '1'));
+    await page.reload({ waitUntil: 'load' });
+    await page.waitForTimeout(300); // let .skip-intro clear
+
+    // The transition must be restored (not frozen at "none") so clicking an
+    // arrow still flips the page smoothly.
+    const duration = await page.evaluate(
+      () =>
+        getComputedStyle(document.querySelector('.book-page.page-right'))
+          .transitionDuration
+    );
+    expect(duration).toBe('1s');
+  });
+});
+
 test.describe('page-flip transitions', () => {
   test('flipping a page applies a CSS transform', async ({ page }) => {
     await openPortfolio(page, BOOK_VP, { flatten: false });
