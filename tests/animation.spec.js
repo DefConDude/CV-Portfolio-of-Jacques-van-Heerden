@@ -70,6 +70,97 @@ test.describe('intro animation sequence (book layout)', () => {
     expect(allClosed, 'some pages are still turned after the intro').toBe(true);
   });
 
+  test('the profile is never raised to the front while pages are still flipping closed', async ({ page }) => {
+    // Regression for the reported glitch: after the 3rd/4th page turn during
+    // load the book "jumped to the home page". That happened because the
+    // profile spread (page-left) was promoted to z-index 20 on a fixed timer
+    // that fired while the last pages were still mid-flip. We now derive that
+    // moment from the close sequence, so the profile must only come forward
+    // once EVERY right-hand page has finished flipping closed.
+    await page.setViewportSize({ width: BOOK_VP.width, height: BOOK_VP.height });
+    await page.goto(
+      require('url').pathToFileURL(
+        require('path').join(__dirname, '..', 'index.html')
+      ).href,
+      { waitUntil: 'load' }
+    );
+
+    // Sample the DOM ~60x/sec through the whole intro, recording whenever the
+    // profile is at the front (z-index 20) while any page still carries .turn.
+    const violations = await page.evaluate(async () => {
+      const found = [];
+      const start = performance.now();
+      const pageLeft = document.querySelector('.book-page.page-left');
+      const rightPages = Array.from(
+        document.querySelectorAll('.book-page.page-right')
+      );
+
+      while (performance.now() - start < 6000) {
+        const profileZ = Number(pageLeft.style.zIndex || 0);
+        const stillTurning = rightPages.filter((p) =>
+          p.classList.contains('turn')
+        );
+        if (profileZ >= 20 && stillTurning.length > 0) {
+          found.push({
+            t: Math.round(performance.now() - start),
+            turning: stillTurning.map((p) => p.id),
+          });
+        }
+        await new Promise((r) => requestAnimationFrame(r));
+      }
+      return found;
+    });
+
+    expect(
+      violations,
+      `profile came to the front mid-flip: ${JSON.stringify(violations.slice(0, 5))}`
+    ).toEqual([]);
+  });
+
+  test('the cover has cleared before the pages start closing', async ({ page }) => {
+    // The pages should only begin closing once the cover has dropped behind
+    // them, otherwise the cover briefly paints over a closing page.
+    await page.setViewportSize({ width: BOOK_VP.width, height: BOOK_VP.height });
+    await page.goto(
+      require('url').pathToFileURL(
+        require('path').join(__dirname, '..', 'index.html')
+      ).href,
+      { waitUntil: 'load' }
+    );
+
+    const timeline = await page.evaluate(async () => {
+      const start = performance.now();
+      const cover = document.querySelector('.cover.cover-right');
+      const rightPages = Array.from(
+        document.querySelectorAll('.book-page.page-right')
+      );
+      let coverClearedAt = null;
+      let firstCloseAt = null;
+
+      while (performance.now() - start < 5000) {
+        const now = Math.round(performance.now() - start);
+        if (coverClearedAt === null && cover.style.zIndex === '-1') {
+          coverClearedAt = now;
+        }
+        // A page "starts closing" the first time it loses its .turn class.
+        if (
+          firstCloseAt === null &&
+          rightPages.some((p) => !p.classList.contains('turn'))
+        ) {
+          firstCloseAt = now;
+        }
+        if (coverClearedAt !== null && firstCloseAt !== null) break;
+        await new Promise((r) => requestAnimationFrame(r));
+      }
+      return { coverClearedAt, firstCloseAt };
+    });
+
+    expect(timeline.coverClearedAt).not.toBeNull();
+    expect(timeline.firstCloseAt).not.toBeNull();
+    // Cover must be clear at or before the first page begins closing.
+    expect(timeline.coverClearedAt).toBeLessThanOrEqual(timeline.firstCloseAt);
+  });
+
   test('no JS errors during the intro sequence', async ({ page }) => {
     const errors = [];
     page.on('pageerror', (e) => errors.push(String(e)));

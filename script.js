@@ -14,8 +14,10 @@ const isBookLayout = () => window.matchMedia(BOOK_LAYOUT_QUERY).matches;
 const pages = Array.from(document.querySelectorAll('.book-page.page-right'));
 
 /* How long the CSS flip takes, so z-index is only restacked once a page has
-   finished moving. Keep in sync with the transition on .book-page.page-right. */
-const FLIP_MS = 500;
+   finished moving. This MUST match the `transition: transform 1s ...` on
+   .book-page.page-right / .cover.cover-right in style.css. Restacking before
+   the flip finishes is what let pages show the wrong neighbour mid-turn. */
+const FLIP_MS = 1000;
 const STAGGER_MS = 200;
 
 /* A closed book stacks page 1 on top; an opened one stacks the last turned
@@ -83,7 +85,9 @@ function openBook(startDelay = 100) {
 
 /* Closes every page from the back forwards, ending on the profile spread.
    Walking a reversed copy avoids the index bookkeeping that previously left
-   pages stranded whenever the page count changed. */
+   pages stranded whenever the page count changed. Returns the timestamp at
+   which the very last page has finished flipping and restacking, so callers
+   can chain follow-up steps without guessing at a fixed delay. */
 function closeBook(startDelay = 0) {
     pages
         .slice()
@@ -92,6 +96,10 @@ function closeBook(startDelay = 0) {
             const index = pages.length - 1 - step;
             setTimeout(() => closePage(pageEl, index), startDelay + (step + 1) * STAGGER_MS);
         });
+
+    // Last page starts flipping at startDelay + pages.length * STAGGER_MS and
+    // needs FLIP_MS more to land and restack its z-index.
+    return startDelay + pages.length * STAGGER_MS + FLIP_MS;
 }
 
 /****************************************************************/
@@ -130,14 +138,26 @@ if (isBookLayout()) {
     const coverRight = document.querySelector('.cover.cover-right');
     const pageLeft = document.querySelector('.book-page.page-left');
 
-    setTimeout(() => coverRight.classList.add('turn'), 2100);
+    /* Timeline, all derived from the flip constants so nothing drifts when the
+       page count changes:
+         1. The cover sits closed, then flips open.
+         2. Once it has finished flipping it drops behind the pages.
+         3. Only after the cover is clear do the pages start closing.
+         4. The profile spread is raised to the front strictly AFTER every page
+            has finished flipping closed. Raising it mid-flip is what used to
+            pop the profile to the front and read as a "jump to home". */
+    const COVER_OPEN_AT = 2100;
+    const COVER_SETTLE_AT = COVER_OPEN_AT + FLIP_MS; // cover finished flipping
+    const CLOSE_START_AT = COVER_SETTLE_AT;          // pages close after cover clears
+
+    setTimeout(() => coverRight.classList.add('turn'), COVER_OPEN_AT);
     setTimeout(() => {
         coverRight.style.zIndex = -1;
-    }, 2800);
+    }, COVER_SETTLE_AT);
+
+    const closeSettledAt = closeBook(CLOSE_START_AT);
 
     setTimeout(() => {
         pageLeft.style.zIndex = 20;
-    }, 3200);
-
-    closeBook(2100);
+    }, closeSettledAt);
 }
