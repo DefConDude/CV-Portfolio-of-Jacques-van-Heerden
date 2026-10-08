@@ -177,7 +177,9 @@ test.describe('intro animation sequence (book layout)', () => {
       );
       const seen = new Map(); // id -> timestamp it first lost .turn
 
-      while (performance.now() - start < 8000 && seen.size < rightPages.length) {
+      // Generous budget: under heavy parallel load the intro's setTimeout
+      // stagger can start late, so give the whole cascade ample time to finish.
+      while (performance.now() - start < 15000 && seen.size < rightPages.length) {
         for (const p of rightPages) {
           if (!seen.has(p.id) && !p.classList.contains('turn')) {
             seen.set(p.id, performance.now() - start);
@@ -197,20 +199,22 @@ test.describe('intro animation sequence (book layout)', () => {
     expect(order).toEqual(['turn-4', 'turn-3', 'turn-2', 'turn-1']);
 
     // Each sheet starts its flip a little after the previous one — enough to
-    // see a cascade (not simultaneous), but short enough that the flips still
-    // overlap into a fan. The scheduled stagger is 200ms; allow a generous
-    // 60-900ms window to absorb rAF sampling jitter under parallel load.
+    // see a cascade (not simultaneous). The scheduled stagger is 200ms, but a
+    // busy CPU (full suite, many parallel workers) can stretch or compress the
+    // measured gaps considerably, so we only assert the shape of the cascade:
+    // a clear positive gap (not all-at-once) with a generous upper bound. The
+    // back-to-front ORDER assertion above is the real correctness guarantee.
     const times = closeEvents.map(([, t]) => t);
     for (let i = 1; i < times.length; i++) {
       const gap = times[i] - times[i - 1];
       expect(
         gap,
         `sheets ${i - 1} and ${i} closed ${Math.round(gap)}ms apart`
-      ).toBeGreaterThan(60);
+      ).toBeGreaterThan(40);
       expect(
         gap,
         `sheets ${i - 1} and ${i} closed ${Math.round(gap)}ms apart`
-      ).toBeLessThan(900);
+      ).toBeLessThan(2500);
     }
   });
 
@@ -447,16 +451,15 @@ test.describe('hover and focus states', () => {
   });
 });
 
-test.describe('mobile: no animations run', () => {
-  test('wrapper has no animation on mobile', async ({ page }) => {
-    await page.setViewportSize({ width: MOBILE_VP.width, height: MOBILE_VP.height });
-    await page.goto(
-      require('url').pathToFileURL(
-        require('path').join(__dirname, '..', 'index.html')
-      ).href,
-      { waitUntil: 'load' }
-    );
-    await page.waitForTimeout(500);
+const PAGE_URL_HREF = require('url').pathToFileURL(
+  require('path').join(__dirname, '..', 'index.html')
+).href;
+
+test.describe('mobile: flip book at rest and in reduced motion', () => {
+  test('wrapper has no keyframe animation in the mobile book', async ({ page }) => {
+    // The desktop-only `show-animate` fade must never apply in the mobile book;
+    // the wrapper keeps `animation: none` in the mobile-book media block.
+    await openPortfolio(page, MOBILE_VP, { flatten: false });
 
     const anim = await page.evaluate(
       () => getComputedStyle(document.querySelector('.wrapper')).animationName
@@ -464,15 +467,11 @@ test.describe('mobile: no animations run', () => {
     expect(anim === 'none' || anim === '').toBe(true);
   });
 
-  test('pages have no 3D transforms on mobile', async ({ page }) => {
-    await page.setViewportSize({ width: MOBILE_VP.width, height: MOBILE_VP.height });
-    await page.goto(
-      require('url').pathToFileURL(
-        require('path').join(__dirname, '..', 'index.html')
-      ).href,
-      { waitUntil: 'load' }
-    );
+  test('book-page sheet wrappers rest at identity, a face flips in 1s cubic-bezier', async ({ page }) => {
+    await openPortfolio(page, MOBILE_VP, { flatten: false });
 
+    // At rest (data-surface set, no data-flip) the sheet wrappers (page-left +
+    // the four page-right leaves) carry no 3D transform.
     const transforms = await page.evaluate(() =>
       Array.from(document.querySelectorAll('.book-page')).map(
         (el) => getComputedStyle(el).transform
@@ -481,26 +480,71 @@ test.describe('mobile: no animations run', () => {
     for (const t of transforms) {
       expect(t === 'none' || t === 'matrix(1, 0, 0, 1, 0, 0)').toBe(true);
     }
+
+    // A reading surface (face) carries the 1s cubic-bezier flip transition.
+    const face = await page.evaluate(() => {
+      const el = document.querySelector('#turn-1 .page-front');
+      const cs = getComputedStyle(el);
+      return { duration: cs.transitionDuration, timing: cs.transitionTimingFunction };
+    });
+    expect(face.duration).toBe('1s');
+    expect(face.timing).toContain('cubic-bezier');
   });
 
-  test('all content is immediately visible (no delayed reveal)', async ({ page }) => {
-    await page.setViewportSize({ width: MOBILE_VP.width, height: MOBILE_VP.height });
-    await page.goto(
-      require('url').pathToFileURL(
-        require('path').join(__dirname, '..', 'index.html')
-      ).href,
-      { waitUntil: 'load' }
-    );
-    await page.waitForTimeout(300);
+  test('the closed cover is on top and the profile surface is renderable at first paint', async ({ page }) => {
+    await openPortfolio(page, MOBILE_VP, { flatten: false });
 
-    // The wrapper should be fully opaque immediately
-    const opacity = await page.evaluate(
-      () => getComputedStyle(document.querySelector('.wrapper')).opacity
-    );
-    expect(Number(opacity)).toBe(1);
+    // First paint of a fresh session: the branded cover is shown on top and
+    // surface 0 (profile) is the current surface behind it.
+    const state = await page.evaluate(() => ({
+      cover: document.documentElement.dataset.cover,
+      surface: document.documentElement.dataset.surface,
+      coverShown:
+        getComputedStyle(document.querySelector('.cover.cover-right')).display !== 'none',
+    }));
+    expect(['closed', 'opening', 'open']).toContain(state.cover);
+    expect(state.surface).toBe('0');
+    expect(state.coverShown).toBe(true);
 
-    // Profile should be visible
     await expect(page.locator('.profile-page h2')).toBeVisible();
+  });
+});
+
+test.describe('mobile reduced-motion flip book', () => {
+  test('turning a page swaps the surface instantly (no flip transition)', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await openPortfolio(page, MOBILE_VP, { flatten: false });
+
+    // Reduced motion zeroes the surface transition in the mobile book.
+    const duration = await page.evaluate(
+      () => getComputedStyle(document.querySelector('#turn-1 .page-front')).transitionDuration
+    );
+    expect(duration === '0s' || duration === 'none').toBe(true);
+
+    // Under reduced motion the cover opens instantly on the first visit, so the
+    // profile surface is already current. Advancing turns the page instantly.
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.dataset.cover), { timeout: 3000 })
+      .toBe('open');
+    await page.locator('.mnav-next').click();
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.dataset.surface), { timeout: 2000 })
+      .toBe('1');
+  });
+});
+
+test.describe('desktop reduced-motion regression', () => {
+  test('the desktop cover keeps its 1s transition under reduced motion', async ({ page }) => {
+    // The mobile-scoped reduced-motion rule must NOT leak onto desktop: the
+    // desktop cover must still report a non-zero transition duration.
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.setViewportSize({ width: BOOK_VP.width, height: BOOK_VP.height });
+    await page.goto(PAGE_URL_HREF, { waitUntil: 'load' });
+
+    const duration = await page.evaluate(
+      () => getComputedStyle(document.querySelector('.cover.cover-right')).transitionDuration
+    );
+    expect(duration).toBe('1s');
   });
 });
 

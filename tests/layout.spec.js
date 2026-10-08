@@ -285,9 +285,9 @@ test.describe('without container query support', () => {
 });
 
 /****************************************************************/
-/* Stacked (mobile) mode: everything flows in one readable column */
+/* Scroll-stack fallback: everything flows in one readable column */
 /****************************************************************/
-for (const viewport of VIEWPORTS.filter((v) => v.mode === 'stacked')) {
+for (const viewport of VIEWPORTS.filter((v) => v.mode === 'stacked-fallback')) {
   test.describe(`${viewport.name} stacked layout`, () => {
     test.beforeEach(async ({ page }) => {
       await openPortfolio(page, viewport);
@@ -368,6 +368,69 @@ for (const viewport of VIEWPORTS.filter((v) => v.mode === 'stacked')) {
         return bad;
       });
       expect(overlaps, `overlapping sections: ${JSON.stringify(overlaps)}`).toEqual([]);
+    });
+  });
+}
+
+/****************************************************************/
+/* Mobile flip-book mode: exactly one surface shows at a time,    */
+/* and the mobile navigation chrome is present.                  */
+/****************************************************************/
+const SURFACE_SELECTORS = [
+  '.book-page.page-left',
+  '#turn-1 .page-front',
+  '#turn-1 .page-back',
+  '#turn-2 .page-front',
+  '#turn-2 .page-back',
+  '#turn-3 .page-front',
+  '#turn-3 .page-back',
+  '#turn-4 .page-front',
+  '#turn-4 .page-back',
+];
+
+for (const viewport of VIEWPORTS.filter((v) => v.mode === 'mobile-book')) {
+  test.describe(`${viewport.name} mobile flip book`, () => {
+    test.beforeEach(async ({ page }) => {
+      await openPortfolio(page, viewport, { flatten: false });
+    });
+
+    test('exactly one reading surface is visible at rest', async ({ page }) => {
+      const visibleCount = await page.evaluate((selectors) => {
+        let count = 0;
+        for (const sel of selectors) {
+          const el = document.querySelector(sel);
+          if (!el) continue;
+          const cs = getComputedStyle(el);
+          const r = el.getBoundingClientRect();
+          if (cs.visibility !== 'hidden' && r.width > 0 && r.height > 0) count++;
+        }
+        return count;
+      }, SURFACE_SELECTORS);
+      expect(visibleCount, 'more than one surface is visible at rest').toBe(1);
+    });
+
+    test('the mobile navigation chrome is present and visible', async ({ page }) => {
+      for (const sel of ['.mobile-nav', '.mnav-prev', '.mnav-next', '.mnav-home', '.mobile-indicator']) {
+        const visible = await page.evaluate((s) => {
+          const el = document.querySelector(s);
+          if (!el) return false;
+          return getComputedStyle(el).display !== 'none';
+        }, sel);
+        expect(visible, `${sel} should be visible in the mobile book`).toBe(true);
+      }
+    });
+
+    test('the desktop page-turn chrome stays hidden', async ({ page }) => {
+      for (const sel of ['.nextprev-btn', '.number-page', '.back-profile']) {
+        const visible = await page.evaluate(
+          (s) =>
+            Array.from(document.querySelectorAll(s)).filter(
+              (el) => getComputedStyle(el).display !== 'none'
+            ).length,
+          sel
+        );
+        expect(visible, `${sel} should be hidden in the mobile book`).toBe(0);
+      }
     });
   });
 }

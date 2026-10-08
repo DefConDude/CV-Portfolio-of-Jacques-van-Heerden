@@ -118,6 +118,12 @@ body {
     transform: rotateY(180deg);
   }
 
+  /* Jacques van Heerden (35317906) - Hide the mobile cover branding on desktop
+     so the desktop cover (and its visual baselines) stay pixel-identical. */
+  .cover.cover-right .cover-brand {
+    display: none;
+  }
+
   .book {
     position: relative;
     width: 100%;
@@ -195,8 +201,46 @@ body {
   }
 }
 
-/* Mobile & Tablet View */
+/* The mobile nav and cover branding default to hidden; the mobile-book media
+   block below re-shows them. Declared BEFORE the media block so the block's
+   display rules (equal specificity) win on source order. */
+.mobile-nav {
+  display: none;
+}
+
+.cover-brand {
+  display: none;
+}
+
+/* ------------------------------------------------------------------
+   Non-desktop shared base (both mobile-book and scroll-stack fallback)
+   The broad "neutralise all 3D with !important" block that used to live
+   here was SPLIT: the scroll-stack neutralisation (position/transform
+   none, cover hidden) now lives only under SCROLL_FALLBACK_QUERY so it
+   can no longer defeat the mobile-book rotateY flip, which is a strict
+   subset of this range. Only mode-agnostic chrome stays here.
+   Keep this union condition in sync with the two JS mirror constants.
+   ------------------------------------------------------------------ */
 @media (max-width: 1023px), (max-aspect-ratio: 999/1000) {
+  body {
+    overflow-x: hidden;
+  }
+
+  .wrapper {
+    width: 100%;
+    padding: 0;
+  }
+}
+
+/* ------------------------------------------------------------------
+   Scroll-stack fallback: very short viewports (height < 480px) that are
+   not the desktop book. A single full-height surface would be too
+   cramped to read, so these fall back to the proven vertical scroll
+   stack. Height-only threshold so short landscape phones land here too.
+   Keep in sync with SCROLL_FALLBACK_QUERY in script.js.
+   ------------------------------------------------------------------ */
+@media (max-height: 479px) and (max-width: 1023px),
+       (max-height: 479px) and (max-aspect-ratio: 999/1000) {
   body {
     overflow-y: auto;
     overflow-x: hidden;
@@ -258,6 +302,296 @@ body {
     padding: 1rem 0;
     background: transparent !important;
     display: block !important;
+  }
+}
+
+/* ------------------------------------------------------------------
+   Mobile single-page 3D flip book: taller than the fallback floor and
+   NOT the desktop book. One of nine reading surfaces shows at a time,
+   driven by html[data-surface=0..8]; pages turn with a rotateY flip
+   that reuses the desktop 1s cubic-bezier timing. No !important is
+   needed because the broad block no longer fights these elements in
+   this range (see the split above).
+   Keep in sync with MOBILE_BOOK_QUERY in script.js.
+   ------------------------------------------------------------------ */
+@media (min-height: 480px) and (max-width: 1023px),
+       (min-height: 480px) and (max-aspect-ratio: 999/1000) {
+  body {
+    overflow: hidden;
+    align-items: stretch;
+  }
+
+  /* The wrapper is intentionally a bubbling host for pointer events: the
+     swipe handler is bound here (see script.js) and receives gestures from
+     whichever fixed layer is on top. Its own box size is NOT load-bearing
+     (all visible children are position:fixed), so do not "fix" its height. */
+  .wrapper {
+    width: 100%;
+    min-height: 100vh;
+    perspective: 100rem;
+    touch-action: pan-y;
+    animation: none;
+  }
+
+  .book {
+    display: block;
+    width: 100%;
+    min-height: 100vh;
+    perspective: 100rem;
+  }
+
+  /* Sheet wrappers become non-interfering boxes so each face is its own
+     positioned layer. */
+  .book-page.page-right {
+    position: static;
+    transform: none;
+    transform-style: flat;
+    right: auto;
+    width: 100%;
+    height: auto;
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+    display: block;
+  }
+
+  /* Promote the nine surfaces to fixed, full-viewport, stacked layers.
+     inset:0 + width/height:100% (NOT 100vw/100vh) so the scrollbar gutter
+     never produces a sliver of horizontal overflow on a tall surface. */
+  .book-page.page-left,
+  #turn-1 .page-front, #turn-1 .page-back,
+  #turn-2 .page-front, #turn-2 .page-back,
+  #turn-3 .page-front, #turn-3 .page-back,
+  #turn-4 .page-front, #turn-4 .page-back {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 1.5rem 1.25rem 5rem;
+    background: var(--pages-color);
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform: rotateY(0deg);
+    transform-origin: left;
+    transition: transform 1s cubic-bezier(.645, .045, .355, 1);
+    touch-action: pan-y;
+    visibility: hidden;
+    z-index: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .book-page.page-left {
+    display: block;
+  }
+
+  /* Reveal exactly the current surface. */
+  html[data-surface="0"] .book-page.page-left,
+  html[data-surface="1"] #turn-1 .page-front,
+  html[data-surface="2"] #turn-1 .page-back,
+  html[data-surface="3"] #turn-2 .page-front,
+  html[data-surface="4"] #turn-2 .page-back,
+  html[data-surface="5"] #turn-3 .page-front,
+  html[data-surface="6"] #turn-3 .page-back,
+  html[data-surface="7"] #turn-4 .page-front,
+  html[data-surface="8"] #turn-4 .page-back {
+    visibility: visible;
+    z-index: 2;
+  }
+
+  /* The outgoing surface stays rendered for the duration of a flip (JS sets
+     .flip-out on it) and rotates away, keyed on the turn direction. */
+  html[data-flip="next"] .book-page.flip-out,
+  html[data-flip="next"] .page-front.flip-out,
+  html[data-flip="next"] .page-back.flip-out {
+    visibility: visible;
+    z-index: 1;
+    transform: rotateY(-180deg);
+  }
+
+  html[data-flip="prev"] .book-page.flip-out,
+  html[data-flip="prev"] .page-front.flip-out,
+  html[data-flip="prev"] .page-back.flip-out {
+    visibility: visible;
+    z-index: 1;
+    transform: rotateY(180deg);
+  }
+
+  /* The incoming surface starts rotated and lands at 0. */
+  html[data-flip="next"][data-surface="0"] .book-page.page-left,
+  html[data-flip="next"][data-surface="1"] #turn-1 .page-front,
+  html[data-flip="next"][data-surface="2"] #turn-1 .page-back,
+  html[data-flip="next"][data-surface="3"] #turn-2 .page-front,
+  html[data-flip="next"][data-surface="4"] #turn-2 .page-back,
+  html[data-flip="next"][data-surface="5"] #turn-3 .page-front,
+  html[data-flip="next"][data-surface="6"] #turn-3 .page-back,
+  html[data-flip="next"][data-surface="7"] #turn-4 .page-front,
+  html[data-flip="next"][data-surface="8"] #turn-4 .page-back {
+    animation: mnav-flip-in-next 1s cubic-bezier(.645, .045, .355, 1);
+  }
+
+  html[data-flip="prev"][data-surface="0"] .book-page.page-left,
+  html[data-flip="prev"][data-surface="1"] #turn-1 .page-front,
+  html[data-flip="prev"][data-surface="2"] #turn-1 .page-back,
+  html[data-flip="prev"][data-surface="3"] #turn-2 .page-front,
+  html[data-flip="prev"][data-surface="4"] #turn-2 .page-back,
+  html[data-flip="prev"][data-surface="5"] #turn-3 .page-front,
+  html[data-flip="prev"][data-surface="6"] #turn-3 .page-back,
+  html[data-flip="prev"][data-surface="7"] #turn-4 .page-front,
+  html[data-flip="prev"][data-surface="8"] #turn-4 .page-back {
+    animation: mnav-flip-in-prev 1s cubic-bezier(.645, .045, .355, 1);
+  }
+
+  @keyframes mnav-flip-in-next {
+    from { transform: rotateY(180deg); }
+    to   { transform: rotateY(0deg); }
+  }
+
+  @keyframes mnav-flip-in-prev {
+    from { transform: rotateY(-180deg); }
+    to   { transform: rotateY(0deg); }
+  }
+
+  /* The branded cover sits on top while closed and flips open on tap/swipe. */
+  .cover {
+    display: none;
+  }
+
+  .cover.cover-right {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    border-radius: 0;
+    align-items: center;
+    justify-content: center;
+    background: var(--cover-color);
+    box-shadow: var(--box-shadow);
+    transform-origin: left;
+    transform: rotateY(0deg);
+    transition: transform 1s cubic-bezier(.645, .045, .355, 1);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    -webkit-tap-highlight-color: transparent;
+    z-index: 10;
+    cursor: pointer;
+  }
+
+  html[data-cover="opening"] .cover.cover-right {
+    transform: rotateY(-180deg);
+  }
+
+  html[data-cover="open"] .cover.cover-right {
+    transform: rotateY(-180deg);
+    z-index: -1;
+    visibility: hidden;
+  }
+
+  .cover.cover-right .cover-brand {
+    display: block;
+    text-align: center;
+    color: var(--white-color);
+    padding: 1.5rem;
+  }
+
+  .cover.cover-right .cover-brand h2 {
+    font-size: clamp(1.5rem, 7vw, 2.4rem);
+    font-weight: 700;
+    margin-bottom: .5rem;
+  }
+
+  .cover.cover-right .cover-brand p {
+    font-size: clamp(1rem, 4vw, 1.4rem);
+    margin-bottom: 1.5rem;
+  }
+
+  .cover.cover-right .cover-brand .cover-hint {
+    display: inline-block;
+    font-size: clamp(.8rem, 3vw, 1rem);
+    padding: .5rem 1rem;
+    border: .125rem solid var(--white-color);
+    border-radius: 2rem;
+    opacity: .9;
+  }
+
+  /* Mobile navigation chrome — fixed bottom bar. */
+  .mobile-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 20;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    padding: .6rem 1rem;
+    background: rgba(0, 31, 66, .92);
+    border-top: var(--border);
+  }
+
+  .mobile-nav .mnav-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 1.6rem;
+    color: var(--main-color);
+    background: rgba(var(--main-color-rgb), .1);
+    border: var(--border);
+    border-radius: .3rem;
+    cursor: pointer;
+    transition: .3s;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mobile-nav .mnav-btn:hover:not([disabled]),
+  .mobile-nav .mnav-btn:active:not([disabled]) {
+    background: var(--main-color);
+    color: var(--white-color);
+  }
+
+  .mobile-nav .mnav-btn[disabled] {
+    opacity: .4;
+    cursor: default;
+  }
+
+  .mobile-nav .mobile-indicator {
+    min-width: 3.5rem;
+    text-align: center;
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--text-color);
+  }
+}
+
+/* ------------------------------------------------------------------
+   Reduced motion in the mobile book ONLY — each clause carries the full
+   mobile-book viewport guard so a desktop viewport (min-width:1024 and
+   landscape) with prefers-reduced-motion can never match. This is the
+   belt-and-braces second guarantee to the JS instant-swap; it must NOT
+   kill the desktop cover's 1s transition.
+   Keep the viewport guard in sync with MOBILE_BOOK_QUERY.
+   ------------------------------------------------------------------ */
+@media (prefers-reduced-motion: reduce) and (min-height: 480px) and (max-width: 1023px),
+       (prefers-reduced-motion: reduce) and (min-height: 480px) and (max-aspect-ratio: 999/1000) {
+  .cover.cover-right,
+  .book-page.page-left,
+  #turn-1 .page-front, #turn-1 .page-back,
+  #turn-2 .page-front, #turn-2 .page-back,
+  #turn-3 .page-front, #turn-3 .page-back,
+  #turn-4 .page-front, #turn-4 .page-back {
+    transition: none !important;
+    animation: none !important;
   }
 }
 

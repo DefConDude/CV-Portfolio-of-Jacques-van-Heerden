@@ -8,9 +8,16 @@ const PROJECT_ROOT = path.resolve(__dirname, '..');
 const PAGE_URL = pathToFileURL(path.join(PROJECT_ROOT, 'index.html')).href;
 
 /**
- * Viewports we care about. `book` viewports render the 3D two-page book
- * (min-width: 769px); `stacked` viewports render the single-column mobile
- * layout (max-width: 768px).
+ * Viewports we care about, grouped by layout mode (three mutually-exclusive,
+ * collectively-exhaustive modes that mirror the CSS media queries):
+ *   - `book`             : the desktop two-page 3D book
+ *                          (min-width:1024px AND min-aspect-ratio:1/1).
+ *   - `mobile-book`      : the single-page 3D flip book for phones and
+ *                          portrait/narrow viewports (height >= 480 and not
+ *                          the desktop book).
+ *   - `stacked-fallback` : the vertical scroll stack kept for very short
+ *                          viewports (height < 480) where a full-screen page
+ *                          would be too cramped.
  */
 const VIEWPORTS = [
   { name: 'desktop-1920x1080', width: 1920, height: 1080, mode: 'book' },
@@ -20,17 +27,28 @@ const VIEWPORTS = [
   { name: 'tablet-landscape-1024x768', width: 1024, height: 768, mode: 'book' },
   { name: 'square-1200x1200', width: 1200, height: 1200, mode: 'book' },
   { name: 'square-1024x1024', width: 1024, height: 1024, mode: 'book' },
-  // Narrow or portrait viewports fall back to the stacked layout: each page of
-  // a two-page spread would be too narrow to read.
-  { name: 'window-1000x1000', width: 1000, height: 1000, mode: 'stacked' },
-  { name: 'tablet-portrait-820x1180', width: 820, height: 1180, mode: 'stacked' },
-  { name: 'tablet-portrait-1024x1366', width: 1024, height: 1366, mode: 'stacked' },
-  { name: 'tablet-768x1024', width: 768, height: 1024, mode: 'stacked' },
-  { name: 'mobile-414x896', width: 414, height: 896, mode: 'stacked' },
-  { name: 'mobile-390x844', width: 390, height: 844, mode: 'stacked' },
-  { name: 'mobile-360x640', width: 360, height: 640, mode: 'stacked' },
-  { name: 'mobile-320x568', width: 320, height: 568, mode: 'stacked' },
+  // Narrow or portrait viewports (that are still tall enough) render the
+  // single-page mobile flip book.
+  { name: 'window-1000x1000', width: 1000, height: 1000, mode: 'mobile-book' },
+  { name: 'tablet-portrait-820x1180', width: 820, height: 1180, mode: 'mobile-book' },
+  { name: 'tablet-portrait-1024x1366', width: 1024, height: 1366, mode: 'mobile-book' },
+  { name: 'tablet-768x1024', width: 768, height: 1024, mode: 'mobile-book' },
+  { name: 'mobile-414x896', width: 414, height: 896, mode: 'mobile-book' },
+  { name: 'mobile-390x844', width: 390, height: 844, mode: 'mobile-book' },
+  { name: 'mobile-360x640', width: 360, height: 640, mode: 'mobile-book' },
+  { name: 'mobile-320x568', width: 320, height: 568, mode: 'mobile-book' },
+  // A short landscape phone (height < 480) exercises the scroll-stack fallback.
+  { name: 'mobile-landscape-667x375', width: 667, height: 375, mode: 'stacked-fallback' },
 ];
+
+/* Mirror constants for the two non-desktop layout queries, matching the CSS
+   media blocks and the script.js constants of the same names. */
+const MOBILE_BOOK_QUERY =
+  '(min-height: 480px) and (max-width: 1023px),' +
+  '(min-height: 480px) and (max-aspect-ratio: 999/1000)';
+const SCROLL_FALLBACK_QUERY =
+  '(max-height: 479px) and (max-width: 1023px),' +
+  '(max-height: 479px) and (max-aspect-ratio: 999/1000)';
 
 /**
  * The book animates in over ~3.3s and flips pages with 3D transforms. Rotated
@@ -82,6 +100,20 @@ async function openPortfolio(page, viewport, { flatten = true } = {}) {
     );
     // One more frame so the flip transitions have finished painting.
     await page.waitForTimeout(300);
+  } else if (viewport.mode === 'mobile-book') {
+    // The mobile flip book is settled once html[data-surface] is present and
+    // non-empty — authored in the HTML and set at init on every path, so this
+    // resolves immediately regardless of first-visit vs skip. Deliberately NOT
+    // gated on the cover being open (that would race the auto-open); cover/flip
+    // tests drive the cover themselves and poll data-cover/data-surface.
+    await page.waitForFunction(
+      () => {
+        const s = document.documentElement.dataset.surface;
+        return s !== undefined && s !== '';
+      },
+      null,
+      { timeout: 15000 }
+    );
   } else {
     await page.waitForTimeout(200);
   }
@@ -250,6 +282,8 @@ module.exports = {
   PROJECT_ROOT,
   PAGE_URL,
   VIEWPORTS,
+  MOBILE_BOOK_QUERY,
+  SCROLL_FALLBACK_QUERY,
   BOOK_PAGES,
   CHROME_SELECTOR,
   MEASUREMENT_MODE_CSS,

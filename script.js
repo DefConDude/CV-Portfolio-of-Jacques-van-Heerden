@@ -8,6 +8,20 @@ const BOOK_LAYOUT_QUERY = '(min-width: 1024px) and (min-aspect-ratio: 1/1)';
 
 const isBookLayout = () => window.matchMedia(BOOK_LAYOUT_QUERY).matches;
 
+/* The mobile single-page flip book and the small-viewport scroll-stack
+   fallback. These two queries mirror the CSS media blocks exactly and, with
+   BOOK_LAYOUT_QUERY, partition every viewport into exactly one mode.
+   Keep these in sync with the matching @media blocks in style.css. */
+const MOBILE_BOOK_QUERY =
+    '(min-height: 480px) and (max-width: 1023px),' +
+    '(min-height: 480px) and (max-aspect-ratio: 999/1000)';
+const isMobileBookLayout = () => window.matchMedia(MOBILE_BOOK_QUERY).matches;
+
+const SCROLL_FALLBACK_QUERY =
+    '(max-height: 479px) and (max-width: 1023px),' +
+    '(max-height: 479px) and (max-aspect-ratio: 999/1000)';
+const isScrollFallback = () => window.matchMedia(SCROLL_FALLBACK_QUERY).matches;
+
 /****************************************************************/
 /* Jacques van Heerden (35317906) - Page Registry               */
 /****************************************************************/
@@ -239,5 +253,236 @@ if (isBookLayout()) {
     } else {
         playIntro(coverRight, pageLeft);
         markIntroPlayed();
+    }
+}
+
+/****************************************************************/
+/* Jacques van Heerden (35317906) - Mobile Flip-Book Controller */
+/****************************************************************/
+/* A single-page 3D flip book for phones and portrait/narrow viewports. It
+   shows one of nine reading surfaces at a time (profile + eight faces),
+   driven by html[data-surface=0..8], with a rotateY page turn that reuses the
+   desktop 1s cubic-bezier feel. Entirely gated behind isMobileBookLayout() so
+   it is inert in the desktop-book and scroll-stack modes, mirroring the
+   isBookLayout() gate above. */
+
+/* Mirrors the desktop function-local COVER_OPEN_AT beat (which is unreachable
+   for reuse); the auto-open fires at this delay on a first visit. */
+const MOBILE_COVER_OPEN_AT = 2100;
+
+if (isMobileBookLayout()) {
+    const html = document.documentElement;
+
+    // The nine surfaces in reading order — same selectors (and order) the
+    // tests' BOOK_PAGES uses. Resolved once; nulls filtered defensively.
+    const SURFACE_SELECTORS = [
+        '.book-page.page-left',
+        '#turn-1 .page-front',
+        '#turn-1 .page-back',
+        '#turn-2 .page-front',
+        '#turn-2 .page-back',
+        '#turn-3 .page-front',
+        '#turn-3 .page-back',
+        '#turn-4 .page-front',
+        '#turn-4 .page-back',
+    ];
+    const surfaces = SURFACE_SELECTORS
+        .map((sel) => document.querySelector(sel))
+        .filter(Boolean);
+    const TOTAL_SURFACES = surfaces.length;
+    const LAST_INDEX = TOTAL_SURFACES - 1;
+
+    const coverRight = document.querySelector('.cover.cover-right');
+    const mobileNav = document.querySelector('.mobile-nav');
+    const prevBtn = document.querySelector('.mnav-prev');
+    const nextBtn = document.querySelector('.mnav-next');
+    const homeBtn = document.querySelector('.mnav-home');
+    const indicator = document.querySelector('.mobile-indicator');
+
+    const SWIPE_THRESHOLD = 48;
+
+    // Seed the current index from the pre-authored html[data-surface], clamped
+    // to the surfaces that actually resolved.
+    let currentIndex = Math.min(
+        Math.max(parseInt(html.dataset.surface, 10) || 0, 0),
+        Math.max(LAST_INDEX, 0)
+    );
+    let coverOpen = html.dataset.cover === 'open';
+    let isAnimating = false;
+    let autoOpenTimer = null;
+
+    const prefersReducedMotion = () =>
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function render() {
+        html.dataset.surface = String(currentIndex);
+
+        if (indicator) {
+            indicator.textContent = `${currentIndex + 1} / ${TOTAL_SURFACES}`;
+        }
+
+        // Toggle the end buttons. Before disabling the button that currently
+        // holds focus, move focus to the always-enabled home button so a
+        // keyboard user is never dropped to <body> (focus stays in the nav).
+        if (prevBtn) {
+            const disablePrev = currentIndex === 0;
+            if (disablePrev && document.activeElement === prevBtn && homeBtn) {
+                homeBtn.focus();
+            }
+            prevBtn.disabled = disablePrev;
+        }
+        if (nextBtn) {
+            const disableNext = currentIndex === LAST_INDEX;
+            if (disableNext && document.activeElement === nextBtn && homeBtn) {
+                homeBtn.focus();
+            }
+            nextBtn.disabled = disableNext;
+        }
+
+        html.dataset.cover = coverOpen ? 'open' : (html.dataset.cover === 'opening' ? 'opening' : 'closed');
+    }
+
+    function goToSurface(target, direction) {
+        if (!isMobileBookLayout()) return;
+        if (isAnimating) return;
+        if (target < 0 || target > LAST_INDEX) return;
+        if (target === currentIndex) {
+            render();
+            return;
+        }
+
+        if (prefersReducedMotion()) {
+            currentIndex = target;
+            render();
+            return;
+        }
+
+        isAnimating = true;
+        const outgoing = surfaces[currentIndex];
+        if (outgoing) outgoing.classList.add('flip-out');
+        html.dataset.flip = direction;
+        currentIndex = target;
+        render();
+
+        setTimeout(() => {
+            delete html.dataset.flip;
+            if (outgoing) outgoing.classList.remove('flip-out');
+            isAnimating = false;
+        }, FLIP_MS);
+    }
+
+    const next = () => goToSurface(currentIndex + 1, 'next');
+    const prev = () => goToSurface(currentIndex - 1, 'prev');
+
+    function openCover() {
+        if (!isMobileBookLayout() || coverOpen) return;
+        if (autoOpenTimer) {
+            clearTimeout(autoOpenTimer);
+            autoOpenTimer = null;
+        }
+
+        if (prefersReducedMotion()) {
+            coverOpen = true;
+            render();
+            return;
+        }
+
+        isAnimating = true;
+        html.dataset.cover = 'opening';
+        setTimeout(() => {
+            coverOpen = true;
+            render();
+            isAnimating = false;
+        }, FLIP_MS);
+    }
+
+    /* ---- Input bindings ---- */
+
+    // Cover tap / keyboard. The cover carries role="button"/tabindex/aria-label
+    // in the HTML, so Enter and Space must also open it.
+    if (coverRight) {
+        coverRight.addEventListener('click', openCover);
+        coverRight.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
+                event.preventDefault();
+                openCover();
+            }
+        });
+    }
+
+    if (nextBtn) {
+        nextBtn.addEventListener('click', () => {
+            if (!coverOpen) {
+                openCover();
+            } else {
+                next();
+            }
+        });
+    }
+    if (prevBtn) prevBtn.addEventListener('click', prev);
+    if (homeBtn) homeBtn.addEventListener('click', () => goToSurface(0, 'prev'));
+
+    // Swipe — bound to .wrapper, the always-present ancestor of the cover, the
+    // book and the nav. Pointer events bubble here regardless of which fixed
+    // layer is on top, so a swipe is received even while the cover covers all.
+    const wrapper = document.querySelector('.wrapper');
+    if (wrapper) {
+        let startX = null;
+        let startY = null;
+
+        wrapper.addEventListener('pointerdown', (event) => {
+            startX = event.clientX;
+            startY = event.clientY;
+        });
+
+        wrapper.addEventListener('pointerup', (event) => {
+            if (startX === null) return;
+            const dx = event.clientX - startX;
+            const dy = event.clientY - startY;
+            startX = null;
+            startY = null;
+
+            // Horizontal swipe only; ignore vertical scrolls of a tall surface.
+            if (Math.abs(dx) < SWIPE_THRESHOLD || Math.abs(dx) <= Math.abs(dy)) return;
+
+            if (!coverOpen) {
+                openCover();
+                return;
+            }
+            if (dx < 0) {
+                next();
+            } else {
+                prev();
+            }
+        });
+    }
+
+    // Contact Me on mobile jumps straight to the contact surface (index 8).
+    // The desktop handler on this same element early-returns off isBookLayout(),
+    // so the two listeners never both act on one event.
+    const contactMeBtnMobile = document.querySelector('.btn.contact-me');
+    if (contactMeBtnMobile) {
+        contactMeBtnMobile.addEventListener('click', (event) => {
+            if (!isMobileBookLayout()) return;
+            event.preventDefault();
+            goToSurface(LAST_INDEX, 'next');
+        });
+    }
+
+    /* ---- Intro gate (shared once-per-session key) ---- */
+    if (introAlreadyPlayed()) {
+        // Snap straight to the open profile, no cover animation.
+        coverOpen = true;
+        currentIndex = 0;
+        render();
+    } else {
+        render();
+        markIntroPlayed();
+        if (prefersReducedMotion()) {
+            coverOpen = true;
+            render();
+        } else {
+            autoOpenTimer = setTimeout(openCover, MOBILE_COVER_OPEN_AT);
+        }
     }
 }

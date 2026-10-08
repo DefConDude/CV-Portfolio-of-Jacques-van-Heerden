@@ -78,8 +78,18 @@ test.describe('assembled views', () => {
     await expect(page.locator('.book')).toHaveScreenshot('book-opened.png');
   });
 
-  test('stacked layout on a phone', async ({ page }) => {
-    await openPortfolio(page, MOBILE_VP);
-    await expect(page).toHaveScreenshot('mobile-full.png', { fullPage: true });
+  test('mobile flip book resting on the profile surface', async ({ page }) => {
+    // Suppress the once-per-session auto-open (setTimeout at 2100ms) so we open
+    // the cover deterministically and capture the resting profile surface.
+    await page.addInitScript(() => {
+      const real = window.setTimeout.bind(window);
+      window.setTimeout = (fn, delay, ...rest) => (delay === 2100 ? 0 : real(fn, delay, ...rest));
+    });
+    await openPortfolio(page, MOBILE_VP, { flatten: false });
+    await page.locator('.cover.cover-right').click();
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.dataset.cover), { timeout: 3000 })
+      .toBe('open');
+    await expect(page).toHaveScreenshot('mobile-full.png');
   });
 });

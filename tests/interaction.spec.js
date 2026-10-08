@@ -10,6 +10,7 @@ const { VIEWPORTS, openPortfolio, CHROME_SELECTOR, measurePageInBrowser } = requ
 const BOOK_VP = VIEWPORTS.find((v) => v.name === 'desktop-1440x900');
 const MOBILE_VP = VIEWPORTS.find((v) => v.name === 'mobile-390x844');
 const PORTRAIT_VP = VIEWPORTS.find((v) => v.name === 'tablet-portrait-820x1180');
+const FALLBACK_VP = VIEWPORTS.find((v) => v.name === 'mobile-landscape-667x375');
 
 const turnedIds = (page) =>
   page.evaluate(() =>
@@ -113,60 +114,93 @@ test.describe('book layout interactions', () => {
   });
 });
 
-test.describe('stacked layout interactions', () => {
+test.describe('mobile flip-book interactions', () => {
   for (const vp of [MOBILE_VP, PORTRAIT_VP]) {
-    test(`${vp.name}: page-turn scripting stays out of the way`, async ({ page }) => {
+    test(`${vp.name}: the flip-book controller is active and the cover is shown`, async ({ page }) => {
       await openPortfolio(page, vp, { flatten: false });
 
-      // The script must agree with the stylesheet about the layout mode.
+      // The script must agree with the stylesheet about the layout mode: this
+      // is the mobile book, not the desktop two-page book.
       const scriptSaysBook = await page.evaluate(() => window.matchMedia(
         '(min-width: 1024px) and (min-aspect-ratio: 1/1)'
       ).matches);
-      const cssSaysBook = await page.evaluate(
-        () => getComputedStyle(document.querySelector('.cover')).display !== 'none'
-      );
       expect(scriptSaysBook).toBe(false);
-      expect(cssSaysBook).toBe(false);
 
-      // The markup ships with the pages "turned" for the closed-book intro.
-      // In the stacked layout that class must have no visual effect at all.
-      const transforms = await page.evaluate(() =>
-        Array.from(document.querySelectorAll('.book-page.page-right')).map(
-          (el) => getComputedStyle(el).transform
-        )
+      // Under the mobile book the cover is SHOWN (not display:none as it was in
+      // the old scroll stack): it is the first thing a visitor sees.
+      const coverShown = await page.evaluate(
+        () => getComputedStyle(document.querySelector('.cover.cover-right')).display !== 'none'
       );
-      for (const t of transforms) {
-        expect(t === 'none' || t === 'matrix(1, 0, 0, 1, 0, 0)').toBe(true);
-      }
+      expect(coverShown).toBe(true);
 
-      // Content of every page is on screen in the flow, not hidden behind a flip.
-      await expect(page.locator('#turn-4 .contact-box')).toBeVisible();
-      await expect(page.locator('#turn-3 .project-box')).toBeVisible();
+      // The controller is driving the surface model.
+      const surface = await page.evaluate(() => document.documentElement.dataset.surface);
+      expect(surface).toBe('0');
     });
 
-    test(`${vp.name}: "Contact Me" scrolls to the contact section`, async ({ page }) => {
+    test(`${vp.name}: arrow controls turn pages after the cover opens`, async ({ page }) => {
+      // Drop the once-per-session auto-open (setTimeout at 2100ms) so the cover
+      // stays closed until this test taps it — deterministic under slow loads.
+      await page.addInitScript(() => {
+        const real = window.setTimeout.bind(window);
+        window.setTimeout = (fn, delay, ...rest) => (delay === 2100 ? 0 : real(fn, delay, ...rest));
+      });
       await openPortfolio(page, vp, { flatten: false });
-      const before = await page.evaluate(() => window.scrollY);
-      await page.locator('.btn.contact-me').click();
-      await page.waitForTimeout(600);
-      const after = await page.evaluate(() => window.scrollY);
-      expect(after, 'the page did not scroll towards the contact form').toBeGreaterThan(before);
+
+      // Open the cover first (Next advances the cover when it is closed).
+      await page.locator('.cover.cover-right').click();
+      await expect
+        .poll(() => page.evaluate(() => document.documentElement.dataset.cover), { timeout: 3000 })
+        .toBe('open');
+
+      await page.locator('.mnav-next').click();
+      await expect
+        .poll(() => page.evaluate(() => document.documentElement.dataset.surface), { timeout: 3000 })
+        .toBe('1');
+      // Let the flip settle (the controller drops gestures while animating).
+      await page.waitForTimeout(1100);
+
+      await page.locator('.mnav-prev').click();
+      await expect
+        .poll(() => page.evaluate(() => document.documentElement.dataset.surface), { timeout: 3000 })
+        .toBe('0');
     });
   }
+
+  test(`${FALLBACK_VP.name}: "Contact Me" scrolls to the contact section`, async ({ page }) => {
+    await openPortfolio(page, FALLBACK_VP, { flatten: false });
+    const before = await page.evaluate(() => window.scrollY);
+    await page.locator('.btn.contact-me').click();
+    await page.waitForTimeout(600);
+    const after = await page.evaluate(() => window.scrollY);
+    expect(after, 'the page did not scroll towards the contact form').toBeGreaterThan(before);
+  });
 });
 
 test.describe('layout mode switching', () => {
-  test('resizing from book to stacked keeps content visible', async ({ page }) => {
+  test('resizing from book to mobile shows exactly the profile surface', async ({ page }) => {
     await openPortfolio(page, BOOK_VP, { flatten: false });
     await page.locator('.btn.contact-me').click();
     await page.waitForTimeout(1500);
 
+    // Resize into the mobile book and reload so the mobile controller
+    // initialises in-mode and binds its handlers.
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.waitForTimeout(400);
+    await page.reload({ waitUntil: 'load' });
+    await page.waitForFunction(
+      () => {
+        const s = document.documentElement.dataset.surface;
+        return s !== undefined && s !== '';
+      },
+      null,
+      { timeout: 15000 }
+    );
 
+    // The one-surface invariant: only the profile (surface 0) is visible; the
+    // first and last faces are visibility:hidden at rest.
     await expect(page.locator('.profile-page h2')).toBeVisible();
-    await expect(page.locator('#turn-1 .page-front .workeduc-box')).toBeVisible();
-    await expect(page.locator('#turn-4 .page-back .contact-box')).toBeVisible();
+    await expect(page.locator('#turn-1 .page-front')).toHaveCSS('visibility', 'hidden');
+    await expect(page.locator('#turn-4 .page-back')).toHaveCSS('visibility', 'hidden');
 
     const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
     expect(scrollWidth).toBeLessThanOrEqual(391);

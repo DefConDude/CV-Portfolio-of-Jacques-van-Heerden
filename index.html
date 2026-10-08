@@ -1,5 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
+<!-- Jacques van Heerden (35317906) - data-surface / data-cover author the
+     pre-JS mobile flip-book state so one surface (profile) and the closed
+     cover show before script.js runs; inert on desktop. -->
+<html lang="en" data-surface="0" data-cover="closed">
 
 <head>
     <meta charset="UTF-8">
@@ -16,6 +19,10 @@
         try {
             if (sessionStorage.getItem('jvh-intro-played') === '1') {
                 document.documentElement.classList.add('skipped-intro', 'skip-intro');
+                // Mobile flip book: flip the pre-paint cover state to open so a
+                // return visit never flashes the closed cover. Layout-agnostic
+                // and inert on desktop (no [data-cover] rules under its query).
+                document.documentElement.setAttribute('data-cover', 'open');
             }
         } catch (e) { /* storage blocked: intro will simply play */ }
     </script>
@@ -25,7 +32,14 @@
 
     <div class="wrapper">
         <div class="cover cover-left"></div>
-        <div class="cover cover-right"></div>
+        <div class="cover cover-right" role="button" tabindex="0" aria-label="Open portfolio">
+            <!-- Jacques van Heerden (35317906) - Mobile cover affordance (hidden on desktop) -->
+            <div class="cover-brand">
+                <h2>Jacques van Heerden</h2>
+                <p>Senior AI Engineer</p>
+                <span class="cover-hint">Tap to open</span>
+            </div>
+        </div>
 
         <div class="book">
             <!-- Jacques van Heerden (35317906) - Profile Page -->
@@ -368,6 +382,17 @@
                 </div>
             </div>
         </div>
+
+        <!-- Jacques van Heerden (35317906) - Mobile flip-book controls.
+             Authored in HTML so the controls exist pre-JS; .mnav-prev is
+             statically disabled because surface 0 (profile) is the first
+             surface. Hidden outside the mobile-book layout. -->
+        <nav class="mobile-nav" aria-label="Page navigation">
+            <button type="button" class="mnav-btn mnav-prev" aria-label="Previous page" disabled><i class='bx bx-chevron-left'></i></button>
+            <button type="button" class="mnav-btn mnav-home" aria-label="Back to profile"><i class='bx bxs-user'></i></button>
+            <span class="mobile-indicator" aria-live="polite">1 / 9</span>
+            <button type="button" class="mnav-btn mnav-next" aria-label="Next page"><i class='bx bx-chevron-right'></i></button>
+        </nav>
     </div>
 
     <script src="script.js"></script>

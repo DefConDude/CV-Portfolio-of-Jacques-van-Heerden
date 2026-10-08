@@ -199,6 +199,11 @@ test.describe('document structure', () => {
       // If the icon font never arrived, this tells us nothing about our markup.
       const fontLoaded = document.fonts.check('16px boxicons');
       const bad = Array.from(document.querySelectorAll('i.bx'))
+        // Icons inside a display:none subtree (e.g. the mobile flip-book nav,
+        // which is hidden on desktop) render no box; they can't be measured
+        // here and are not what this test is about, so skip them — matching how
+        // the layout specs skip hidden elements.
+        .filter((el) => el.getClientRects().length > 0)
         .map((el) => ({
           cls: el.className,
           content: getComputedStyle(el, '::before').content,
