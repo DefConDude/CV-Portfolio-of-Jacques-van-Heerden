@@ -117,9 +117,11 @@ test.describe('intro animation sequence (book layout)', () => {
     ).toEqual([]);
   });
 
-  test('the cover has cleared before the pages start closing', async ({ page }) => {
-    // The pages should only begin closing once the cover has dropped behind
-    // them, otherwise the cover briefly paints over a closing page.
+  test('the cover flips open and drops behind the pages during the intro', async ({ page }) => {
+    // Matching the reference, the cover swings open while the pages begin
+    // fanning (the motions overlap) and the cover ends up tucked behind
+    // everything at z-index -1. We assert the cover both turns and clears, and
+    // that the clearing happens in the expected early window of the intro.
     await page.setViewportSize({ width: BOOK_VP.width, height: BOOK_VP.height });
     await page.goto(
       require('url').pathToFileURL(
@@ -131,43 +133,35 @@ test.describe('intro animation sequence (book layout)', () => {
     const timeline = await page.evaluate(async () => {
       const start = performance.now();
       const cover = document.querySelector('.cover.cover-right');
-      const rightPages = Array.from(
-        document.querySelectorAll('.book-page.page-right')
-      );
+      let coverTurnedAt = null;
       let coverClearedAt = null;
-      let firstCloseAt = null;
 
       while (performance.now() - start < 8000) {
         const now = Math.round(performance.now() - start);
+        if (coverTurnedAt === null && cover.classList.contains('turn')) {
+          coverTurnedAt = now;
+        }
         if (coverClearedAt === null && cover.style.zIndex === '-1') {
           coverClearedAt = now;
         }
-        // A page "starts closing" the first time it loses its .turn class.
-        if (
-          firstCloseAt === null &&
-          rightPages.some((p) => !p.classList.contains('turn'))
-        ) {
-          firstCloseAt = now;
-        }
-        if (coverClearedAt !== null && firstCloseAt !== null) break;
+        if (coverTurnedAt !== null && coverClearedAt !== null) break;
         await new Promise((r) => requestAnimationFrame(r));
       }
-      return { coverClearedAt, firstCloseAt };
+      return { coverTurnedAt, coverClearedAt };
     });
 
+    expect(timeline.coverTurnedAt).not.toBeNull();
     expect(timeline.coverClearedAt).not.toBeNull();
-    expect(timeline.firstCloseAt).not.toBeNull();
-    // Cover must be clear at or before the first page begins closing.
-    expect(timeline.coverClearedAt).toBeLessThanOrEqual(timeline.firstCloseAt);
+    // The cover flips before it drops behind the pages.
+    expect(timeline.coverTurnedAt).toBeLessThanOrEqual(timeline.coverClearedAt);
   });
 
-  test('sheets close one at a time, not several at once', async ({ page }) => {
-    // Regression for "8, 7, then 5-4-3 all together, then skips to 1". Each
-    // sheet must be well into its own flip before the next one starts, so the
-    // intro reads like turning pages in a real book. We record the moment each
-    // sheet loses its .turn class and assert those moments are spaced out by a
-    // healthy fraction of the flip duration rather than firing on top of each
-    // other.
+  test('sheets fan closed in order with an overlapping stagger', async ({ page }) => {
+    // The reference book turns its pages with a short 200ms stagger so the
+    // flips OVERLAP into one flowing fan — not a rigid one-at-a-time turn, and
+    // not all at once. We record when each sheet loses its .turn class and
+    // assert they go in reading order (back sheet first) with a small positive
+    // gap between each.
     await page.setViewportSize({ width: BOOK_VP.width, height: BOOK_VP.height });
     await page.goto(
       require('url').pathToFileURL(
@@ -176,7 +170,7 @@ test.describe('intro animation sequence (book layout)', () => {
       { waitUntil: 'load' }
     );
 
-    const closeTimes = await page.evaluate(async () => {
+    const closeEvents = await page.evaluate(async () => {
       const start = performance.now();
       const rightPages = Array.from(
         document.querySelectorAll('.book-page.page-right')
@@ -191,25 +185,32 @@ test.describe('intro animation sequence (book layout)', () => {
         }
         await new Promise((r) => requestAnimationFrame(r));
       }
-      // Return the close timestamps sorted in the order they happened.
-      return Array.from(seen.values()).sort((a, b) => a - b);
+      // id -> time, in the order they actually closed.
+      return Array.from(seen.entries()).sort((a, b) => a[1] - b[1]);
     });
 
     // Every sheet must have closed.
-    expect(closeTimes.length).toBe(4);
+    expect(closeEvents.length).toBe(4);
 
-    // Consecutive closes must be spaced. The flip is 1s; sequential turns are
-    // staggered at ~0.8s. Under parallel test load rAF sampling can miss the
-    // exact frame a sheet flips, which only ever makes a measured gap look
-    // SMALLER than reality — so we assert a conservative floor of 300ms. The
-    // broken "all at once" cascade spaced sheets ~0-200ms apart, so 300ms
-    // still catches that regression while tolerating sampling jitter.
-    for (let i = 1; i < closeTimes.length; i++) {
-      const gap = closeTimes[i] - closeTimes[i - 1];
+    // They should close back-to-front: turn-4, turn-3, turn-2, turn-1.
+    const order = closeEvents.map(([id]) => id);
+    expect(order).toEqual(['turn-4', 'turn-3', 'turn-2', 'turn-1']);
+
+    // Each sheet starts its flip a little after the previous one — enough to
+    // see a cascade (not simultaneous), but short enough that the flips still
+    // overlap into a fan. The scheduled stagger is 200ms; allow a generous
+    // 60-900ms window to absorb rAF sampling jitter under parallel load.
+    const times = closeEvents.map(([, t]) => t);
+    for (let i = 1; i < times.length; i++) {
+      const gap = times[i] - times[i - 1];
       expect(
         gap,
-        `sheets ${i - 1} and ${i} closed only ${Math.round(gap)}ms apart`
-      ).toBeGreaterThan(300);
+        `sheets ${i - 1} and ${i} closed ${Math.round(gap)}ms apart`
+      ).toBeGreaterThan(60);
+      expect(
+        gap,
+        `sheets ${i - 1} and ${i} closed ${Math.round(gap)}ms apart`
+      ).toBeLessThan(900);
     }
   });
 

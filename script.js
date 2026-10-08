@@ -13,23 +13,22 @@ const isBookLayout = () => window.matchMedia(BOOK_LAYOUT_QUERY).matches;
 /****************************************************************/
 const pages = Array.from(document.querySelectorAll('.book-page.page-right'));
 
-/* How long the CSS flip takes, so z-index is only restacked once a page has
-   finished moving. This MUST match the `transition: transform 1s ...` on
-   .book-page.page-right / .cover.cover-right in style.css. Restacking before
-   the flip finishes is what let pages show the wrong neighbour mid-turn. */
+/* The CSS flip transition is `transform 1s` on the pages and cover. The
+   reference book (3D Portfolio Website) matched here deliberately does NOT wait
+   the full second before restacking or before releasing the next page — that
+   overlap is what gives the intro its flowing, rippling "fan" of pages rather
+   than rigid one-at-a-time turns.
+
+   RESTACK_MS: how long after a page starts flipping we update its z-index.
+   The reference restacks at the halfway point (500ms); mid-flip the page is
+   edge-on so the swap is invisible, and it keeps the cascade feeling light.
+
+   STAGGER_MS: gap between the start of one page's flip and the next during a
+   bulk open/close. The reference uses 200ms, so several pages are in motion at
+   once and ripple over each other. This is the look to reproduce. */
 const FLIP_MS = 1000;
-
-/* Gap between the START of one sheet's flip and the next.
-   For a book-like, one-page-at-a-time turn each sheet should be most of the
-   way through its flip before the next begins. A stagger shorter than the flip
-   makes several sheets move together (the "5-4-3 all at once" glitch).
-
-   The on-load intro is leisurely (80% of the flip) so it reads like slowly
-   fanning a book open. The "Contact Me" / "Back to Profile" buttons are a
-   deliberate user action, so they use a snappier stagger to feel responsive
-   while still turning one page at a time. */
-const INTRO_STAGGER_MS = Math.round(FLIP_MS * 0.8);
-const BUTTON_STAGGER_MS = Math.round(FLIP_MS * 0.35);
+const RESTACK_MS = 500;
+const STAGGER_MS = 200;
 
 /* A closed book stacks page 1 on top; an opened one stacks the last turned
    page on top. Separating the two keeps the arrows and the bulk animations
@@ -44,14 +43,14 @@ function openPage(pageEl, index) {
     pageEl.classList.add('turn');
     setTimeout(() => {
         pageEl.style.zIndex = openedZIndex(index);
-    }, FLIP_MS);
+    }, RESTACK_MS);
 }
 
 function closePage(pageEl, index) {
     pageEl.classList.remove('turn');
     setTimeout(() => {
         pageEl.style.zIndex = closedZIndex(index);
-    }, FLIP_MS);
+    }, RESTACK_MS);
 }
 
 /****************************************************************/
@@ -90,34 +89,31 @@ pageTurnBtn.forEach((el) => {
 /****************************************************************/
 /* Jacques van Heerden (35317906) - Bulk Open / Close          */
 /****************************************************************/
-/* Opens every sheet in order, front to back, one turn at a time so it reads
-   like flipping through a real book. `stagger` controls the pace. Returns when
-   the last sheet has settled. */
-function openBook(startDelay = 100, stagger = INTRO_STAGGER_MS) {
+/* Opens every sheet in order, front to back, with a short 200ms stagger so the
+   flips overlap into a flowing fan — matching the reference book. Returns the
+   timestamp at which the last sheet has finished its full flip. */
+function openBook(startDelay = 100) {
     pages.forEach((pageEl, index) => {
-        setTimeout(() => openPage(pageEl, index), startDelay + index * stagger);
+        setTimeout(() => openPage(pageEl, index), startDelay + (index + 1) * STAGGER_MS);
     });
-    return startDelay + (pages.length - 1) * stagger + FLIP_MS;
+    return startDelay + pages.length * STAGGER_MS + FLIP_MS;
 }
 
-/* Closes every sheet from the back forwards, one turn at a time, ending on the
-   profile spread. Walking a reversed copy avoids the index bookkeeping that
-   previously left pages stranded whenever the page count changed. `stagger`
-   controls the pace. Returns the timestamp at which the very last sheet has
-   finished flipping and restacking, so callers can chain follow-up steps
-   without guessing at a fixed delay. */
-function closeBook(startDelay = 0, stagger = INTRO_STAGGER_MS) {
+/* Closes every sheet from the back forwards with the same 200ms stagger,
+   ending on the profile spread. Walking a reversed copy avoids the index
+   bookkeeping (the reference's double-decrement reverseIndex) that left pages
+   stranded whenever the page count changed. Returns the timestamp at which the
+   last sheet has finished its full flip. */
+function closeBook(startDelay = 0) {
     pages
         .slice()
         .reverse()
         .forEach((pageEl, step) => {
             const index = pages.length - 1 - step;
-            setTimeout(() => closePage(pageEl, index), startDelay + step * stagger);
+            setTimeout(() => closePage(pageEl, index), startDelay + (step + 1) * STAGGER_MS);
         });
 
-    // The last sheet starts flipping at startDelay + (n-1) * stagger and needs
-    // FLIP_MS more to land and restack its z-index.
-    return startDelay + (pages.length - 1) * stagger + FLIP_MS;
+    return startDelay + pages.length * STAGGER_MS + FLIP_MS;
 }
 
 /****************************************************************/
@@ -130,7 +126,7 @@ if (contactMeBtn) {
         // In the stacked layout the anchor should just scroll to the section.
         if (!isBookLayout()) return;
         event.preventDefault();
-        openBook(100, BUTTON_STAGGER_MS);
+        openBook();
     });
 }
 
@@ -143,7 +139,7 @@ if (backProfileBtn) {
     backProfileBtn.addEventListener('click', (event) => {
         if (!isBookLayout()) return;
         event.preventDefault();
-        closeBook(0, BUTTON_STAGGER_MS);
+        closeBook();
     });
 }
 
@@ -203,32 +199,35 @@ function settleBookOpenInstantly(coverRight, pageLeft) {
     });
 }
 
-/* Plays the full choreographed intro and returns the timestamp it settles at. */
+/* Plays the full choreographed intro, mirroring the reference book's timeline:
+     - The cover flips open at 2100ms.
+     - As the cover swings away it drops behind the pages at 2800ms.
+     - The profile spread is raised just behind the opening pages at 3200ms.
+     - The pages fan closed starting at 2300ms with a 200ms stagger, so their
+       flips overlap the cover's and each other's into one flowing motion.
+   Returns the timestamp at which the last page finishes its flip. */
 function playIntro(coverRight, pageLeft) {
-    /* Timeline, all derived from the flip constants so nothing drifts when the
-       page count changes:
-         1. The cover sits closed, then flips open.
-         2. Once it has finished flipping it drops behind the pages.
-         3. Only after the cover is clear do the pages start closing.
-         4. The profile spread is raised to the front strictly AFTER every page
-            has finished flipping closed. Raising it mid-flip is what used to
-            pop the profile to the front and read as a "jump to home". */
-    const COVER_OPEN_AT = 1400;
-    const COVER_SETTLE_AT = COVER_OPEN_AT + FLIP_MS; // cover finished flipping
-    const CLOSE_START_AT = COVER_SETTLE_AT;          // pages close after cover clears
+    const COVER_OPEN_AT = 2100;
 
     setTimeout(() => coverRight.classList.add('turn'), COVER_OPEN_AT);
     setTimeout(() => {
         coverRight.style.zIndex = -1;
-    }, COVER_SETTLE_AT);
+    }, 2800);
 
-    const closeSettledAt = closeBook(CLOSE_START_AT);
+    // Pages begin fanning closed just after the cover starts opening, with the
+    // overlapping 200ms stagger that gives the reference its flowing motion.
+    const settledAt = closeBook(COVER_OPEN_AT);
 
+    // Raise the profile to the front only once every page has finished its
+    // flip. The reference raised it early (3200ms, mid-flip) which let the
+    // profile flash through a page still rotating over the left side — the
+    // "jumps to home" glitch. Waiting until the pages have settled keeps the
+    // same look without that artefact.
     setTimeout(() => {
         pageLeft.style.zIndex = 20;
-    }, closeSettledAt);
+    }, settledAt);
 
-    return closeSettledAt;
+    return settledAt;
 }
 
 if (isBookLayout()) {
