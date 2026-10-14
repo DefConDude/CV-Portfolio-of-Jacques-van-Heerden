@@ -121,6 +121,32 @@ for (const viewport of [MOBILE_VP, PORTRAIT_VP]) {
       await expect.poll(() => surfaceAttr(page), { timeout: SETTLE }).toBe('0');
     });
 
+    test('left and right arrows are visible and tappable on the phone', async ({ page }) => {
+      await openPortfolio(page, viewport, { flatten: false });
+      await openCover(page);
+
+      // Both arrows must be on-screen (not display:none) and big enough to tap.
+      for (const sel of ['.mnav-prev', '.mnav-next']) {
+        const btn = page.locator(sel);
+        await expect(btn, `${sel} should be visible on the phone`).toBeVisible();
+        const box = await btn.boundingBox();
+        expect(box, `${sel} has no box`).not.toBeNull();
+        expect(box.width, `${sel} too narrow to tap`).toBeGreaterThanOrEqual(40);
+        expect(box.height, `${sel} too short to tap`).toBeGreaterThanOrEqual(40);
+      }
+
+      // Each arrow carries a chevron glyph and an accessible label.
+      await expect(page.locator('.mnav-prev i.bx')).toHaveClass(/bx-chevron-left/);
+      await expect(page.locator('.mnav-next i.bx')).toHaveClass(/bx-chevron-right/);
+      await expect(page.locator('.mnav-prev')).toHaveAttribute('aria-label', /previous/i);
+      await expect(page.locator('.mnav-next')).toHaveAttribute('aria-label', /next/i);
+
+      // The right arrow sits to the right of the left arrow.
+      const prevBox = await page.locator('.mnav-prev').boundingBox();
+      const nextBox = await page.locator('.mnav-next').boundingBox();
+      expect(nextBox.x).toBeGreaterThan(prevBox.x);
+    });
+
     test('the arrow buttons turn pages', async ({ page }) => {
       await openPortfolio(page, viewport, { flatten: false });
       await openCover(page);
