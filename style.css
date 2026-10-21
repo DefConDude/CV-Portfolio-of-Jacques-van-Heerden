@@ -524,7 +524,7 @@ body {
   .mobile-nav {
     display: flex;
     position: fixed;
-    bottom: max(1.75rem, calc(env(safe-area-inset-bottom, 0px) + .5rem));
+    bottom: max(5rem, calc(env(safe-area-inset-bottom, 0px) + .5rem));
     left: 0;
     right: 0;
     z-index: 20;
