@@ -1323,6 +1323,44 @@ body {
   background: rgba(var(--main-color-rgb), 0.1);
 }
 
+/* Jacques van Heerden (35317906) - Flagship Project Call To Action */
+.project-box .tech-chips:has(+ .project-cta) {
+  margin-bottom: .9rem;
+}
+
+.project-box .project-cta {
+  display: flex;
+  gap: .6rem;
+  width: 100%;
+  height: auto;
+  min-height: 2.9rem;
+  margin-bottom: 1rem;
+  padding: .55rem 1rem;
+  font-size: clamp(.9rem, 2.2vw, 1.05rem);
+  font-weight: 600;
+  letter-spacing: .02em;
+  border-radius: .5rem;
+  box-shadow: 0 0 1rem rgba(var(--main-color-rgb), .45);
+}
+
+.project-box .project-cta i {
+  font-size: 1.3em;
+}
+
+.project-box .project-cta .bx-right-arrow-alt {
+  transition: transform .3s ease;
+}
+
+.project-box .project-cta:hover .bx-right-arrow-alt,
+.project-box .project-cta:focus-visible .bx-right-arrow-alt {
+  transform: translateX(.3rem);
+}
+
+.project-box .project-cta:focus-visible {
+  outline: 2px solid var(--white-color);
+  outline-offset: 3px;
+}
+
 /* Jacques van Heerden (35317906) - Contact Details */
 .contact-details {
   list-style: none;
