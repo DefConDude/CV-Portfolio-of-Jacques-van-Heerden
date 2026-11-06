@@ -24,7 +24,7 @@ const CV_FACTS = {
     'Laerskool Kenmare',
     'Vodacom',
   ],
-  'flagship project': ['FNB', 'Commercial Credit Review'],
+  'flagship project': ['Commercial Credit Review'],
   'project stack': ['OpenShift', 'PostgreSQL', 'Langfuse', 'Weaviate', 'SharePoint', 'OpenAI'],
   degree: ['B.Sc. Information Technology', 'Cum Laude', 'North-West University', 'Golden Key'],
   schooling: ['Noordheuwel'],

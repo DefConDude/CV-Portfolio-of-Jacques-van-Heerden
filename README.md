@@ -37,7 +37,7 @@ spilling outside the book.
 2. Earlier Career — IT Tech Services, Laerskool Kenmare, Vodacom, plus awards
 3. Education & Qualifications
 4. Skills
-5. Flagship AI project — FNB Commercial Credit Review Agent
+5. Flagship AI project — Commercial Credit Review Agent
 6. Brighton Medical System
 7. Top 8 books
 8. Contact
