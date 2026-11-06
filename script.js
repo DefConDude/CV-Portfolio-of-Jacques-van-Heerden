@@ -486,3 +486,46 @@ if (isMobileBookLayout()) {
         }
     }
 }
+
+/****************************************************************/
+/* Jacques van Heerden (35317906) - Flagship Project Viewer    */
+/****************************************************************/
+/* The flagship button opens the live showcase in an overlay so visitors
+   stay inside the portfolio. Without <dialog> support, or for ctrl/cmd/
+   middle clicks, the link's normal new-tab behaviour is left alone. */
+(() => {
+    const trigger = document.querySelector('.project-cta');
+    const viewer = document.getElementById('project-viewer');
+    if (!trigger || !viewer || typeof viewer.showModal !== 'function') return;
+
+    const frame = viewer.querySelector('iframe');
+    const frameBox = viewer.querySelector('.viewer-frame');
+    const closeBtn = viewer.querySelector('.viewer-close');
+
+    frame.addEventListener('load', () => {
+        if (frame.getAttribute('src')) frameBox.classList.add('loaded');
+    });
+
+    trigger.addEventListener('click', (event) => {
+        if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+        event.preventDefault();
+        event.stopPropagation();
+        // Load on first open only, so the portfolio itself stays light.
+        if (!frame.getAttribute('src')) frame.setAttribute('src', frame.dataset.src);
+        viewer.showModal();
+        document.body.classList.add('viewer-open');
+        closeBtn.focus();
+    });
+
+    closeBtn.addEventListener('click', () => viewer.close());
+
+    // Clicking the dimmed backdrop (outside the panel) also closes it.
+    viewer.addEventListener('click', (event) => {
+        if (event.target === viewer) viewer.close();
+    });
+
+    viewer.addEventListener('close', () => {
+        document.body.classList.remove('viewer-open');
+        trigger.focus();
+    });
+})();

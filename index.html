@@ -266,7 +266,7 @@
                                 <span>SharePoint</span>
                             </div>
 
-                            <a href="https://defcondude.github.io/flagship-ai-project/" class="btn project-cta" target="_blank" rel="noopener noreferrer">
+                            <a href="https://defcondude.github.io/flagship-ai-project/" class="btn project-cta" target="_blank" rel="noopener noreferrer" aria-haspopup="dialog">
                                 <i class='bx bx-rocket' aria-hidden="true"></i>
                                 <span>View my latest AI Project</span>
                                 <i class='bx bx-right-arrow-alt' aria-hidden="true"></i>
@@ -400,6 +400,21 @@
             <button type="button" class="mnav-btn mnav-next" aria-label="Next page"><i class='bx bx-chevron-right'></i></button>
         </nav>
     </div>
+
+    <!-- Jacques van Heerden (35317906) - Flagship Project Viewer -->
+    <dialog class="project-viewer" id="project-viewer" aria-labelledby="project-viewer-title">
+        <div class="viewer-bar">
+            <h2 class="viewer-title" id="project-viewer-title"><i class='bx bx-rocket' aria-hidden="true"></i> Credit Assist: my latest AI project</h2>
+            <div class="viewer-actions">
+                <a class="viewer-btn" href="https://defcondude.github.io/flagship-ai-project/" target="_blank" rel="noopener noreferrer" aria-label="Open the project in a new tab"><i class='bx bx-link-external' aria-hidden="true"></i><span>New tab</span></a>
+                <button type="button" class="viewer-btn viewer-close" aria-label="Close project and return to portfolio"><i class='bx bx-x' aria-hidden="true"></i><span>Close</span></button>
+            </div>
+        </div>
+        <div class="viewer-frame">
+            <div class="viewer-loading" aria-hidden="true"><i class='bx bx-loader-alt bx-spin'></i></div>
+            <iframe title="Credit Assist project showcase" data-src="https://defcondude.github.io/flagship-ai-project/" loading="lazy"></iframe>
+        </div>
+    </dialog>
 
     <script src="script.js"></script>
 </body>
