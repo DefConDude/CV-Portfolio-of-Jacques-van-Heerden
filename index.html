@@ -311,43 +311,64 @@
 
             <!-- Jacques van Heerden (35317906) - Books and Contact Pages -->
             <div class="book-page page-right turn" id="turn-4">
-                <!-- Page 7: Favourite Books -->
+                <!-- Page 7: Bookshelf -->
                 <div class="page-front">
                     <div class="page-content">
-                        <h1 class="title">My Top 8 Books</h1>
+                        <h1 class="title">My Bookshelf</h1>
+                        <p class="shelf-hint"><i class='bx bx-book-open' aria-hidden="true"></i> Pick a book to flip through my notes</p>
 
-                        <div class="services-box">
-                            <div class="services-content">
-                                <h3>The Holy Bible (KJV)</h3>
-                            </div>
-
-                            <div class="services-content">
-                                <h3>The 7 Habits of Highly Effective People</h3>
-                            </div>
-
-                            <div class="services-content">
-                                <h3>The Power to Change</h3>
-                            </div>
-
-                            <div class="services-content">
-                                <h3>Thinking, Fast and Slow</h3>
-                            </div>
-
-                            <div class="services-content">
-                                <h3>The Art of War</h3>
-                            </div>
-
-                            <div class="services-content">
-                                <h3>The Five Levels of Leadership</h3>
-                            </div>
-
-                            <div class="services-content">
-                                <h3>Extreme Ownership</h3>
-                            </div>
-
-                            <div class="services-content">
-                                <h3>Rich Dad Poor Dad</h3>
-                            </div>
+                        <div class="services-box book-shelf">
+                            <button type="button" class="services-content book-tile" data-book="holy-bible-kjv" style="--book-accent: #E9C46A" aria-haspopup="dialog" aria-label="The Holy Bible (KJV): open my notes">
+                                <span class="book-dot" aria-hidden="true"></span><span class="book-name">Holy Bible (KJV)</span>
+                            </button>
+                            <button type="button" class="services-content book-tile" data-book="atomic-habits" style="--book-accent: #FF6B35" aria-haspopup="dialog" aria-label="Atomic Habits by James Clear: open my notes">
+                                <span class="book-dot" aria-hidden="true"></span><span class="book-name">Atomic Habits</span>
+                            </button>
+                            <button type="button" class="services-content book-tile" data-book="7-habits-of-highly-effective-people" style="--book-accent: #3ED6E0" aria-haspopup="dialog" aria-label="The 7 Habits of Highly Effective People by Stephen R. Covey: open my notes">
+                                <span class="book-dot" aria-hidden="true"></span><span class="book-name">The 7 Habits</span>
+                            </button>
+                            <button type="button" class="services-content book-tile" data-book="the-power-to-change" style="--book-accent: #FFC247" aria-haspopup="dialog" aria-label="The Power to Change by Craig Groeschel: open my notes">
+                                <span class="book-dot" aria-hidden="true"></span><span class="book-name">The Power to Change</span>
+                            </button>
+                            <button type="button" class="services-content book-tile" data-book="thinking-fast-and-slow" style="--book-accent: #5AB0FF" aria-haspopup="dialog" aria-label="Thinking, Fast and Slow by Daniel Kahneman: open my notes">
+                                <span class="book-dot" aria-hidden="true"></span><span class="book-name">Thinking, Fast and Slow</span>
+                            </button>
+                            <button type="button" class="services-content book-tile" data-book="the-art-of-war" style="--book-accent: #FF5C5C" aria-haspopup="dialog" aria-label="The Art of War by Sun Tzu: open my notes">
+                                <span class="book-dot" aria-hidden="true"></span><span class="book-name">The Art of War</span>
+                            </button>
+                            <button type="button" class="services-content book-tile" data-book="five-levels-of-leadership" style="--book-accent: #3DDC97" aria-haspopup="dialog" aria-label="The 5 Levels of Leadership by John C. Maxwell: open my notes">
+                                <span class="book-dot" aria-hidden="true"></span><span class="book-name">The 5 Levels of Leadership</span>
+                            </button>
+                            <button type="button" class="services-content book-tile" data-book="extreme-ownership" style="--book-accent: #C6F432" aria-haspopup="dialog" aria-label="Extreme Ownership by Jocko Willink &amp; Leif Babin: open my notes">
+                                <span class="book-dot" aria-hidden="true"></span><span class="book-name">Extreme Ownership</span>
+                            </button>
+                            <button type="button" class="services-content book-tile" data-book="12-rules-for-life" style="--book-accent: #B89CFF" aria-haspopup="dialog" aria-label="12 Rules for Life by Jordan B. Peterson: open my notes">
+                                <span class="book-dot" aria-hidden="true"></span><span class="book-name">12 Rules for Life</span>
+                            </button>
+                            <button type="button" class="services-content book-tile" data-book="how-to-win-friends-and-influence-people" style="--book-accent: #FF8FC7" aria-haspopup="dialog" aria-label="How to Win Friends and Influence People by Dale Carnegie: open my notes">
+                                <span class="book-dot" aria-hidden="true"></span><span class="book-name">How to Win Friends</span>
+                            </button>
+                            <button type="button" class="services-content book-tile" data-book="digital-sales-revolution" style="--book-accent: #FFA06B" aria-haspopup="dialog" aria-label="Digital Sales Revolution: open my notes">
+                                <span class="book-dot" aria-hidden="true"></span><span class="book-name">Digital Sales Revolution</span>
+                            </button>
+                            <button type="button" class="services-content book-tile" data-book="sales-eq" style="--book-accent: #FDE047" aria-haspopup="dialog" aria-label="Sales EQ by Jeb Blount: open my notes">
+                                <span class="book-dot" aria-hidden="true"></span><span class="book-name">Sales EQ</span>
+                            </button>
+                            <button type="button" class="services-content book-tile" data-book="ai-engineering" style="--book-accent: #2DD4BF" aria-haspopup="dialog" aria-label="AI Engineering by Chip Huyen: open my notes">
+                                <span class="book-dot" aria-hidden="true"></span><span class="book-name">AI Engineering</span>
+                            </button>
+                            <button type="button" class="services-content book-tile" data-book="build-a-large-language-model-from-scratch" style="--book-accent: #8B9CFF" aria-haspopup="dialog" aria-label="Build a Large Language Model (From Scratch) by Sebastian Raschka: open my notes">
+                                <span class="book-dot" aria-hidden="true"></span><span class="book-name">Build an LLM (From Scratch)</span>
+                            </button>
+                            <button type="button" class="services-content book-tile" data-book="llm-engineers-handbook" style="--book-accent: #4ADE80" aria-haspopup="dialog" aria-label="LLM Engineer's Handbook by Paul Iusztin &amp; Maxime Labonne: open my notes">
+                                <span class="book-dot" aria-hidden="true"></span><span class="book-name">LLM Engineer's Handbook</span>
+                            </button>
+                            <button type="button" class="services-content book-tile" data-book="prompt-engineering-for-llms" style="--book-accent: #FBBF24" aria-haspopup="dialog" aria-label="Prompt Engineering for LLMs by John Berryman &amp; Albert Ziegler: open my notes">
+                                <span class="book-dot" aria-hidden="true"></span><span class="book-name">Prompt Engineering for LLMs</span>
+                            </button>
+                            <button type="button" class="services-content book-tile" data-book="building-llms-for-production" style="--book-accent: #FB7185" aria-haspopup="dialog" aria-label="Building LLMs for Production by Louis-François Bouchard &amp; Louie Peters: open my notes">
+                                <span class="book-dot" aria-hidden="true"></span><span class="book-name">Building LLMs for Production</span>
+                            </button>
                         </div>
                     </div>
 
@@ -416,6 +437,25 @@
         </div>
     </dialog>
 
+    <!-- Jacques van Heerden (35317906) - Bookshelf Notes Viewer -->
+    <dialog class="project-viewer book-viewer" id="book-viewer" aria-labelledby="book-viewer-title">
+        <div class="viewer-bar">
+            <h2 class="viewer-title" id="book-viewer-title"><i class='bx bx-book-open' aria-hidden="true"></i> <span class="book-viewer-name">Book notes</span></h2>
+            <div class="viewer-actions">
+                <span class="book-counter" aria-live="polite">1 / 9</span>
+                <button type="button" class="viewer-btn viewer-close" aria-label="Close book notes and return to portfolio"><i class='bx bx-x' aria-hidden="true"></i><span>Close</span></button>
+            </div>
+        </div>
+        <div class="book-stage">
+            <button type="button" class="book-nav book-prev" aria-label="Previous slide"><i class='bx bx-chevron-left' aria-hidden="true"></i></button>
+            <!-- The slide <img> is created by script.js on first open. -->
+            <figure class="book-slide"></figure>
+            <button type="button" class="book-nav book-next" aria-label="Next slide"><i class='bx bx-chevron-right' aria-hidden="true"></i></button>
+        </div>
+        <div class="book-dots" aria-hidden="true"></div>
+    </dialog>
+
+    <script src="books/books-data.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

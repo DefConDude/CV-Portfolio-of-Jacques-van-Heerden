@@ -1875,3 +1875,216 @@ body.viewer-open {
     min-width: 44px;
   }
 }
+
+/* ------------------------------------------------------------------
+   Jacques van Heerden (35317906) - Bookshelf
+   Seventeen books as tappable tiles; each opens its carousel of notes in
+   the book viewer below. Two compact columns so the whole shelf fits one
+   book page without scrolling.
+   ------------------------------------------------------------------ */
+.shelf-hint {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  margin: -.2rem 0 .7rem;
+  font-size: clamp(.72rem, 1.9vw, .85rem);
+  color: var(--second-text-color);
+}
+
+.shelf-hint i {
+  color: var(--main-color);
+  font-size: 1.15em;
+}
+
+.services-box.book-shelf {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .45rem;
+  margin-bottom: 0;
+}
+
+.services-box .book-tile {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  width: 100%;
+  min-height: 2.25rem;
+  padding: .35rem .6rem;
+  text-align: left;
+  font: inherit;
+  color: var(--text-color);
+  cursor: pointer;
+  border: var(--border);
+}
+
+.book-tile .book-dot {
+  flex-shrink: 0;
+  width: .6rem;
+  height: .6rem;
+  border-radius: 50%;
+  background: var(--book-accent, var(--main-color));
+  box-shadow: 0 0 .4rem var(--book-accent, var(--main-color));
+}
+
+.book-tile .book-name {
+  font-size: clamp(.75rem, 2vw, .88rem);
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.services-box .book-tile:hover,
+.services-box .book-tile:focus-visible {
+  box-shadow: var(--box-shadow);
+  background: rgba(var(--main-color-rgb), 0.14);
+}
+
+.services-box .book-tile:focus-visible {
+  outline: 2px solid var(--white-color);
+  outline-offset: 2px;
+}
+
+@media (min-width: 1024px) and (min-aspect-ratio: 1/1) {
+  .page-content .services-box.book-shelf {
+    gap: clamp(.3rem, .9vh, .5rem);
+  }
+
+  .page-content .book-tile {
+    min-height: clamp(2rem, 4.6vh, 2.5rem);
+    padding: clamp(.2rem, .6vh, .4rem) .55rem;
+  }
+
+  .page-content .book-tile .book-name {
+    font-size: clamp(.68rem, 1.35vh, .82rem);
+  }
+
+  .page-content .shelf-hint {
+    font-size: clamp(.68rem, 1.3vh, .8rem);
+    margin-bottom: clamp(.4rem, 1.2vh, .7rem);
+  }
+}
+
+/* Book notes viewer: reuses the project viewer frame, with a slide stage. */
+.book-viewer .book-counter {
+  align-self: center;
+  min-width: 3.2rem;
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--second-text-color);
+  text-align: center;
+}
+
+.book-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: #0b0b0a;
+  touch-action: pan-y;
+}
+
+.book-slide {
+  height: 100%;
+  max-width: 100%;
+  aspect-ratio: 4 / 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.book-slide img {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  border-radius: .6rem;
+  box-shadow: 0 1rem 3rem rgba(0, 0, 0, .55);
+  user-select: none;
+  -webkit-user-drag: none;
+  transition: opacity .2s ease;
+}
+
+.book-slide img.is-loading {
+  opacity: .25;
+}
+
+.book-nav {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border: var(--border);
+  border-radius: 50%;
+  background: rgba(0, 43, 92, .85);
+  color: var(--main-color);
+  font-size: 2rem;
+  cursor: pointer;
+  transition: .3s ease;
+}
+
+.book-nav:hover:not(:disabled),
+.book-nav:focus-visible {
+  background: var(--main-color);
+  color: var(--white-color);
+}
+
+.book-nav:focus-visible {
+  outline: 2px solid var(--white-color);
+  outline-offset: 2px;
+}
+
+.book-nav:disabled {
+  opacity: .3;
+  cursor: default;
+}
+
+.book-dots {
+  display: flex;
+  justify-content: center;
+  gap: .4rem;
+  padding: .7rem;
+  border-top: var(--border);
+  background: var(--pages-color);
+}
+
+.book-dots span {
+  width: 1.6rem;
+  height: .3rem;
+  border-radius: .2rem;
+  background: rgba(255, 255, 255, .2);
+  transition: background .3s ease;
+}
+
+.book-dots span.active {
+  background: var(--book-accent, var(--main-color));
+}
+
+@media (max-width: 600px) {
+  .book-stage {
+    padding: .5rem;
+  }
+
+  .book-nav {
+    position: absolute;
+    bottom: .8rem;
+    z-index: 1;
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  .book-prev { left: calc(50% - 3.4rem); }
+  .book-next { right: calc(50% - 3.4rem); }
+
+  .book-slide {
+    height: auto;
+    width: 100%;
+  }
+
+  .book-dots span {
+    width: 1.1rem;
+  }
+}
