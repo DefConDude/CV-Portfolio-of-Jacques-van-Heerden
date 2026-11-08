@@ -529,3 +529,117 @@ if (isMobileBookLayout()) {
         trigger.focus();
     });
 })();
+
+/****************************************************************/
+/* Jacques van Heerden (35317906) - Bookshelf Notes Viewer      */
+/****************************************************************/
+/* Each book tile opens its nine-slide carousel in a dialog, reusing the
+   flagship viewer's frame. Arrows, keyboard (left/right), dots and swipe
+   move between slides; images load on demand so the portfolio stays light. */
+(() => {
+    const viewer = document.getElementById('book-viewer');
+    const tiles = document.querySelectorAll('.book-tile');
+    const books = window.BOOK_NOTES || [];
+    if (!viewer || !tiles.length || !books.length || typeof viewer.showModal !== 'function') return;
+
+    // Built on demand so the page never ships an image with no source.
+    const img = document.createElement('img');
+    img.width = 1080;
+    img.height = 1350;
+    img.decoding = 'async';
+    img.alt = '';
+    const slideBox = viewer.querySelector('.book-slide');
+    const nameEl = viewer.querySelector('.book-viewer-name');
+    const counter = viewer.querySelector('.book-counter');
+    const prevBtn = viewer.querySelector('.book-prev');
+    const nextBtn = viewer.querySelector('.book-next');
+    const closeBtn = viewer.querySelector('.viewer-close');
+    const dotsEl = viewer.querySelector('.book-dots');
+    const stage = viewer.querySelector('.book-stage');
+
+    let book = null;
+    let index = 0;
+    let lastTrigger = null;
+
+    const slideSrc = (slug, i) => `books/${slug}/${String(i + 1).padStart(2, '0')}.webp`;
+
+    function preload(i) {
+        if (!book || i < 0 || i >= book.alts.length) return;
+        const pre = new Image();
+        pre.src = slideSrc(book.slug, i);
+    }
+
+    function show(i) {
+        if (!book) return;
+        index = Math.max(0, Math.min(i, book.alts.length - 1));
+        img.classList.add('is-loading');
+        img.src = slideSrc(book.slug, index);
+        img.alt = `${book.title}, slide ${index + 1} of ${book.alts.length}: ${book.alts[index]}`;
+        counter.textContent = `${index + 1} / ${book.alts.length}`;
+        prevBtn.disabled = index === 0;
+        nextBtn.disabled = index === book.alts.length - 1;
+        dotsEl.querySelectorAll('span').forEach((dot, k) => dot.classList.toggle('active', k === index));
+        preload(index + 1);
+        preload(index - 1);
+    }
+
+    img.addEventListener('load', () => img.classList.remove('is-loading'));
+
+    function open(slug, trigger) {
+        book = books.find((b) => b.slug === slug);
+        if (!book) return;
+        lastTrigger = trigger;
+        if (!img.isConnected) slideBox.appendChild(img);
+        viewer.style.setProperty('--book-accent', book.accent);
+        nameEl.textContent = `${book.title} · my notes`;
+        dotsEl.innerHTML = '';
+        book.alts.forEach(() => dotsEl.appendChild(document.createElement('span')));
+        show(0);
+        viewer.showModal();
+        document.body.classList.add('viewer-open');
+        nextBtn.focus();
+    }
+
+    tiles.forEach((tile) => {
+        tile.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            open(tile.dataset.book, tile);
+        });
+    });
+
+    prevBtn.addEventListener('click', () => show(index - 1));
+    nextBtn.addEventListener('click', () => show(index + 1));
+    closeBtn.addEventListener('click', () => viewer.close());
+
+    viewer.addEventListener('keydown', (event) => {
+        if (event.key === 'ArrowRight') { event.preventDefault(); show(index + 1); }
+        if (event.key === 'ArrowLeft') { event.preventDefault(); show(index - 1); }
+    });
+
+    // Clicking the dimmed backdrop (outside the panel) closes it.
+    viewer.addEventListener('click', (event) => {
+        if (event.target === viewer) viewer.close();
+    });
+
+    // Horizontal swipe on the slide stage.
+    let startX = null;
+    let startY = null;
+    stage.addEventListener('pointerdown', (event) => {
+        startX = event.clientX;
+        startY = event.clientY;
+    });
+    stage.addEventListener('pointerup', (event) => {
+        if (startX === null) return;
+        const dx = event.clientX - startX;
+        const dy = event.clientY - startY;
+        startX = null;
+        if (Math.abs(dx) < 40 || Math.abs(dx) <= Math.abs(dy)) return;
+        show(dx < 0 ? index + 1 : index - 1);
+    });
+
+    viewer.addEventListener('close', () => {
+        document.body.classList.remove('viewer-open');
+        if (lastTrigger) lastTrigger.focus();
+    });
+})();

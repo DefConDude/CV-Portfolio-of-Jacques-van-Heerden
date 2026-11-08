@@ -39,7 +39,7 @@ spilling outside the book.
 4. Skills
 5. Flagship AI project — Commercial Credit Review Agent
 6. Brighton Medical System
-7. Top 8 books
+7. My Bookshelf — 17 books; each tile opens a 9-slide carousel of my notes
 8. Contact
 
 ## Tests
@@ -97,7 +97,9 @@ differently, so expect to regenerate on first use elsewhere.
 | --- | --- |
 | `index.html` | All eight pages plus the profile spread |
 | `style.css` | Layout modes, page-relative type scale, components |
-| `script.js` | Page turning, intro sequence, layout-mode detection |
+| `script.js` | Page turning, intro sequence, layout-mode detection, project and book viewers |
+| `books/books-data.js` | Bookshelf data: titles, authors, accent colours and slide alt text |
+| `books/<slug>/01–09.webp` | The carousel slides for each book (1080×1350) |
 | `tests/helpers.js` | Viewport list, page registry, geometry probe |
 | `tests/cv-text.js` | Extracts text from the CV PDF for the content tests |
 
